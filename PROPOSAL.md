@@ -166,7 +166,3 @@ Deliverables:
 Payment: 5 stars
 
 Expected Completion: October 2022
-
-```
-
-```
