@@ -5,10 +5,10 @@
 #include <lmdb.h>
 #include <math.h>
 #include <pthread.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -25,62 +25,195 @@
 // Types
 //==============================================================================
 
-//! Event object.
-typedef struct event {
-  //! A non-negative integer formatted as an ASCII string.
-  char* key;
-  //! A byte-array.
-  char* value;
-} event_t;
-
 //==============================================================================
 // External variables.
 //==============================================================================
 
 //! Events to be used for the benchmark.
-extern event_t events[];
+extern FDBKeyValue events[];
 
 //==============================================================================
 // Functions
 //==============================================================================
 
-//! Reads a single event from the FoundationDB cluster, specified by the given 
-//! key.
-//! TODO: asynchronous or not?
+//! Runs read and write benchmarks with mock events.
+//!
+//! @return 0  Success.
+//! @return 1  Failure.
+int run_benchmark_mock(int num_events, int event_size, int batch_size) {
+  // Error keeper.
+  int err;
+
+  // Generate mock events and load them into our global `events` array.
+  err = _load_mock_events(events, num_events, event_size);
+
+  // Initialize FoundationDB.
+  FDBDatabase *fdb;
+  err = _fdb_init(fdb);
+  if (err != 0) {
+    exit(err);
+  }
+
+  // Run the batch write benchmark (one tx per batch of events written).
+  // if (err != 0) {
+  //   err = _run_write_event_batch_benchmark(batch_size);
+  // }
+  // else {
+  //   exit(err);
+  // }
+
+  // Run the single write benchmark (one tx per event written).
+  if (err != 0) {
+    err = _run_write_event_benchmark(fdb, num_events);
+  }
+  else {
+    exit(err);
+  }
+
+  // Success.
+  return 0;
+}
+
+//! Runs read and write benchmarks with events from LMDB.
+//!
+//! @return 0  Success.
+//! @return 1  Failure.
+int run_benchmark_lmdb(char* mdb_file, int batch_size) {
+  return 0;
+}
+
+//! Runs the batch write benchmark. Prints results.
+//!
+//! @param[in] batch_size  The number of events to write per transaction.
+//!
+//! @return 0  Success.
+//! @return 1  Failure.
+int _run_write_event_batch_benchmark(int batch_size) {
+  clock_t start, end;
+  double cpu_time_used;
+
+  start = clock();
+
+  // Do stuff here.
+
+  end = clock();
+  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+
+  // Success.
+  return 0;
+}
+
+//! Runs the write benchmark. Prints results.
+//!
+//! @param[in] num_events  The number of events to write.
+//!
+//! @return 0  Success.
+//! @return 1  Failure.
+int _run_write_event_benchmark(FDBDatabase* fdb, int num_events) {
+  clock_t start, end;
+  double cpu_time_used;
+
+  // Start the timer.
+  start = clock();
+
+  // Iterate through events and write each to the database.
+  for (int i = 0; i < num_events; i++) {
+
+    // Error.
+    int err;
+
+    // Create a new database transaction with `fdb_database_create_transaction()`.
+    FDBTransaction *tx;
+    err = fdb_database_create_transaction(fdb, &tx);
+
+    // Get the key/value pair from the events array.
+    char *key = events[i].key;
+    int key_length = events[i].key_length;
+    char *value = events[i].value;
+    int value_length = events[i].value_length;
+
+    // Create a transaction with a write of a single key/value pair.
+    if (err != 0) {
+      exit(err);
+    }
+    fdb_transaction_set(tx, key, key_length, value, value_length);
+
+    // Commit the transaction.
+    FDBFuture *future;
+    future = fdb_transaction_commit(tx);
+
+    // Wait for the future to be ready.
+    err = fdb_future_block_until_ready(future);
+    if (err != 0) {
+      exit(err);
+    }
+
+    // Check that the future did not return any errors.
+    err = fdb_future_get_error(future);
+    if (err != 0) {
+      exit(err);
+    }
+
+    // Destroy the future.
+    fdb_future_destroy(future);
+
+    // Success.
+    return 0;
+  }
+
+  // Stop the timer.
+  end = clock();
+  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+
+  // Success.
+  return 0;
+}
+
+//! Synchronously reads a single event from the FoundationDB cluster, specified 
+//! by the given key.
 //!
 //! @return NULL  Failed to read event.
 //! @return       Pointer to the event.
-event_t* _read_event(int key) {
+FDBKeyValue* _read_event(int key) {
+  // Create transaction object.
+  FDBTransaction *fdb_tx;
+
+  // Create a new database transaction with `fdb_database_create_transaction()`.
+  // Create an `FDBFuture` and set it to the return of `fdb_transaction_get()`.
+  // Block event loop with `fdb_future_block_until_ready()`, retry if needed.
+  // Get the value from the `FDBFuture` with `fdb_future_get_value()`.
+  // Destroy the `FDBFuture` with `fdb_future_destroy()`.
   return NULL;
 }
 
-//! Reads a batch of events from the FoundationDB cluster, specified by the 
-//! given key range.
-//! TODO: asynchronous or not?
+//! Asynchronously reads a batch of events from the FoundationDB cluster, 
+//! specified by the given key range.
 //!
 //! @return NULL  Failed to read the event batch.
 //! @return       Pointer to the event array.
-event_t* _read_event_batch(int start, int end) {
+FDBKeyValue* _read_event_batch(int start, int end) {
   return NULL;
 }
 
-//! Writes a single event to the FoundationDB cluster, asynchronously.
+//! Asynchronously writes a single event to the FoundationDB cluster with a 
+//! single FoundationDB transaction.
 //!
 //! @param[in] e  Event to write.
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int _write_event_async(event_t e) {
+int _write_event(FDBKeyValue e) {
   return 0;
 }
 
-//! Writes a batch of events to the FoundationDB cluster, synchronously.
+//! Asynchronously writes a batch of events with a single FoundationDB 
+//! transaction.
 //!
 //! @param[in] events  Events to write.
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int _write_event_batch(event_t events[]) {
+int _write_event_batch(FDBKeyValue events[]) {
   return 0;
 }
 
@@ -100,8 +233,8 @@ void* _fdb_init_run_network(void* arg) {
 //! @return  0  Success.
 //! @return -1  Failure.
 int _fdb_init(FDBDatabase* fdb) {
-  const char* linux_cluster_path = "/etc/foundationdb/fdb.cluster";
-  FDBFuture* fdb_future = NULL;
+  const char *linux_cluster_path = "/etc/foundationdb/fdb.cluster";
+  FDBFuture *fdb_future = NULL;
   
   // Check cluster file attributes, exit if not found.
   struct stat cluster_file_buffer;
@@ -165,26 +298,30 @@ int _fdb_init(FDBDatabase* fdb) {
 //! @param[in] event_size  The size of each event, in bytes.
 //!
 //! @return 0  Success. 
-int _load_mock_events(event_t events[], int n, int event_size) {
+int _load_mock_events(FDBKeyValue events[], int num_events, int event_size) {
   // Seed the random number generator.
   srand(time(0));
 
   // Write random key/values into the given array.
-  for (int i = 0; i < n; i++) {
+  for (int i = 1; i <= num_events; i++) {
     // Generate a key.
-    char key[50];
+    int key_length = _count_digits(i);
+    char key[key_length];
     sprintf(key, "%d", i);
 
     // Generate a value.
     char value[event_size]; 
     for (int j = 0; j < event_size; j++) {
       // 0-255 (all valid bytes).
-      value[j] = rand() % 256;
+      int b = rand() % 256;
+      value[j] = b;
     }
 
     // Write the key and value into a slot in the array.
     events[i].key = key;
+    events[i].key_length = key_length;
     events[i].value = value;
+    events[i].value_length = event_size;
   }
 
   return 0;
@@ -196,6 +333,23 @@ int _load_mock_events(event_t events[], int n, int event_size) {
 //! @param[in] events      The event array to write events into.
 //!
 //! @return 0  Success. 
-int _load_lmdb_events(event_t events[]) {
+int _load_lmdb_events(FDBKeyValue events[]) {
   return 0;
+}
+
+//! Counts the number of digits in the given integer.
+//!
+//! @param[in] n  The integer.
+//!
+//! @return  The number of digits.
+int _count_digits(int n) {
+  if (n == 0) {
+    return 1;
+  }
+  int count = 0;
+  while (n != 0) {
+    n = n / 10;
+    ++count;
+  }
+  return count;
 }

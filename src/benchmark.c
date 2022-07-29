@@ -3,10 +3,10 @@
 //! Seguro benchmarking tool.
 
 #include <errno.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <getopt.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "seguro.h"
 
@@ -32,28 +32,40 @@ int main(int argc, char** argv) {
   int opt;
   int longindex;
   static struct option options[] = {
-    // name       has_arg            flag         val
-    { "events",   required_argument, no_argument, 'e' },
-    { "mdb-file", required_argument, no_argument, 'f' },
+    // name         has_arg            flag         val
+    { "num-events", required_argument, no_argument, 'n' },
+    { "event-size", required_argument, no_argument, 's' },
+    { "batch-size", required_argument, no_argument, 'b' },
+    { "mdb-file"  , required_argument, no_argument, 'f' },
     {NULL, 0, NULL, 0},
   };
 
   // Number of events to generate (or load from file).
-  long events = (long) 10000;
+  long num_events = 10000;
+  // Event size (in bytes, 10KB by default).
+  int event_size = 10000;
+  // Batch size (in number of events, 10 by default).
+  int batch_size = 10;
   // LMDB file to load events from.
-  char* mdb_file = NULL;
+  char *mdb_file = NULL;
 
   // Parse options.
-  while ((opt = getopt_long(argc, argv, "e:f:", options, &longindex)) != EOF) {
+  while ((opt = getopt_long(argc, argv, "n:s:b:f:", options, &longindex)) != EOF) {
     switch (opt) {
-      case 'e':
+      case 'n':
         // Parse long integer from string.
         errno = 0;
-        events = strtol(optarg, (char **) NULL, 10);
+        num_events = strtol(optarg, (char **) NULL, 10);
         const bool range_err = errno == ERANGE;
         if (range_err) {
           printf("ERROR: events must be a valid long integer.\n");
         }
+        break;
+      case 's':
+        event_size = optarg;
+        break;
+      case 'b':
+        batch_size = optarg;
         break;
       case 'f':
         mdb_file = optarg;
@@ -67,15 +79,15 @@ int main(int argc, char** argv) {
 
   // Start the benchmark with events loaded from LMDB. 
   if (mdb_file) { 
-    printf("Loading %ld events from LMDB database file: %s", events, mdb_file); 
+    printf("Loading %ld events from LMDB database file: %s", num_events, mdb_file); 
+    run_benchmark_lmdb(mdb_file, batch_size);
   } 
   // Start the benchmark with mock events.
   else {
-    printf("Generating %ld mock events...\n", events);
-    int n = 100000;
-    event_t events[n];
-    _load_mock_events(events, n, 10000);
+    printf("Generating %ld mock events...\n", num_events);
+    run_benchmark_mock(num_events, event_size, batch_size);
   }
 
+  // Success.
   return 0;
 }
