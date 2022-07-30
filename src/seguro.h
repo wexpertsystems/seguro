@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define FDB_API_VERSION 610
+#define FDB_API_VERSION 710
 #include <foundationdb/fdb_c.h>
 
 #define CLUSTER_NAME    "fdb.cluster"
@@ -29,8 +29,8 @@
 // External variables.
 //==============================================================================
 
-//! Events to be used for the benchmark.
-extern FDBKeyValue events[];
+//! Event array to be used for the benchmark.
+FDBKeyValue *events;
 
 //==============================================================================
 // Functions
@@ -40,19 +40,26 @@ extern FDBKeyValue events[];
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int run_benchmark_mock(int num_events, int event_size, int batch_size) {
+int run_benchmark_mock(long num_events, int event_size, int batch_size) {
   // Error keeper.
   int err;
 
   // Generate mock events and load them into our global `events` array.
   err = _load_mock_events(events, num_events, event_size);
+  if (err != 0) {
+    printf("_load_mock_events failed");
+    exit(err);
+  }
 
   // Initialize FoundationDB.
+  printf("Initializing FoundationDB...\n");
   FDBDatabase *fdb;
   err = _fdb_init(fdb);
   if (err != 0) {
+    printf("_fdb_init failed:\n%s", fdb_get_error(err));
     exit(err);
   }
+  printf("Initialized FoundationDB.\n\n");
 
   // Run the batch write benchmark (one tx per batch of events written).
   // if (err != 0) {
@@ -63,10 +70,9 @@ int run_benchmark_mock(int num_events, int event_size, int batch_size) {
   // }
 
   // Run the single write benchmark (one tx per event written).
+  err = _run_write_event_benchmark(fdb, num_events);
   if (err != 0) {
-    err = _run_write_event_benchmark(fdb, num_events);
-  }
-  else {
+    printf("Write event benchmark failed.\n");
     exit(err);
   }
 
@@ -109,22 +115,25 @@ int _run_write_event_batch_benchmark(int batch_size) {
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int _run_write_event_benchmark(FDBDatabase* fdb, int num_events) {
+int _run_write_event_benchmark(FDBDatabase* fdb, long num_events) {
+  printf("Running single write benchmark...\n");
+
+  // Start the timer.
   clock_t start, end;
   double cpu_time_used;
 
-  // Start the timer.
-  start = clock();
-
   // Iterate through events and write each to the database.
   for (int i = 0; i < num_events; i++) {
-
-    // Error.
+    // Error keeper.
     int err;
 
-    // Create a new database transaction with `fdb_database_create_transaction()`.
+    // Create a new database transaction.
     FDBTransaction *tx;
     err = fdb_database_create_transaction(fdb, &tx);
+    if (err != 0) {
+      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+      exit(err);
+    }
 
     // Get the key/value pair from the events array.
     char *key = events[i].key;
@@ -133,9 +142,6 @@ int _run_write_event_benchmark(FDBDatabase* fdb, int num_events) {
     int value_length = events[i].value_length;
 
     // Create a transaction with a write of a single key/value pair.
-    if (err != 0) {
-      exit(err);
-    }
     fdb_transaction_set(tx, key, key_length, value, value_length);
 
     // Commit the transaction.
@@ -145,6 +151,7 @@ int _run_write_event_benchmark(FDBDatabase* fdb, int num_events) {
     // Wait for the future to be ready.
     err = fdb_future_block_until_ready(future);
     if (err != 0) {
+      printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
       exit(err);
     }
 
@@ -156,14 +163,14 @@ int _run_write_event_benchmark(FDBDatabase* fdb, int num_events) {
 
     // Destroy the future.
     fdb_future_destroy(future);
-
-    // Success.
-    return 0;
   }
 
   // Stop the timer.
-  end = clock();
-  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+  // end = clock();
+  // cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+
+  // Print.
+  printf("Wrote %ld events to the database.", num_events);
 
   // Success.
   return 0;
@@ -222,7 +229,7 @@ int _write_event_batch(FDBKeyValue events[]) {
 void* _fdb_init_run_network(void* arg) {
   fdb_error_t err = fdb_run_network();
   if (err != 0) {
-    fprintf(stderr, "_fdb_init_run_network: %s\n", fdb_get_error(err));
+    printf("_fdb_init_run_network: %s\n", fdb_get_error(err));
     exit(-1);
   }
 }
@@ -240,7 +247,7 @@ int _fdb_init(FDBDatabase* fdb) {
   struct stat cluster_file_buffer;
   uint32_t cluster_file_stat = stat(linux_cluster_path, &cluster_file_buffer);
   if (cluster_file_stat != 0) {
-    fprintf(stderr, "ERROR: no fdb.cluster file found at: %s\n", linux_cluster_path);
+    printf("ERROR: no fdb.cluster file found at: %s\n", linux_cluster_path);
     return -1;
   }
   
@@ -248,14 +255,14 @@ int _fdb_init(FDBDatabase* fdb) {
   fdb_error_t err;
   err = fdb_select_api_version(FDB_API_VERSION);
   if (err != 0) {
-    fprintf(stderr, "fdb_init select api version: %s\n", fdb_get_error(err));
+    printf("fdb_init select api version: %s\n", fdb_get_error(err));
     goto fdb_init_error;
   }
 
   // Setup FDB network.
   err = fdb_setup_network();
   if (err != 0) {
-    fprintf(stderr, "fdb_init failed to setup fdb network: %s\n", fdb_get_error(err));
+    printf("fdb_init failed to setup fdb network: %s\n", fdb_get_error(err));
     goto fdb_init_error;
   }
   pthread_t fdb_network_thread;
@@ -264,19 +271,19 @@ int _fdb_init(FDBDatabase* fdb) {
   // Create the database.
   err = fdb_create_database((char *) linux_cluster_path, &fdb);
   if (err != 0) {
-    fprintf(stderr, "fdb_init create database: %s\n", fdb_get_error(err));
+    printf("fdb_init create database: %s\n", fdb_get_error(err));
     goto fdb_init_error;
   }
 
   // Stop the network.
   err = fdb_stop_network();
   if (err != 0) {
-    fprintf(stderr, "fdb_init stop network: %s\n", fdb_get_error(err));
+    printf("fdb_init stop network: %s\n", fdb_get_error(err));
     goto fdb_init_error;
   }
   err = pthread_join(fdb_network_thread, NULL);
   if (err != 0) {
-    fprintf(stderr, "fdb_init wait for network thread: %s\n", fdb_get_error(err));
+    printf("fdb_init wait for network thread: %s\n", fdb_get_error(err));
     goto fdb_init_error;
   }
 
@@ -298,12 +305,15 @@ int _fdb_init(FDBDatabase* fdb) {
 //! @param[in] event_size  The size of each event, in bytes.
 //!
 //! @return 0  Success. 
-int _load_mock_events(FDBKeyValue events[], int num_events, int event_size) {
+int _load_mock_events(FDBKeyValue events[], long num_events, int event_size) {
   // Seed the random number generator.
   srand(time(0));
 
+  // Allocate memory for events.
+  events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * num_events);
+
   // Write random key/values into the given array.
-  for (int i = 1; i <= num_events; i++) {
+  for (int i = 0; i <= num_events; i++) {
     // Generate a key.
     int key_length = _count_digits(i);
     char key[key_length];
@@ -324,6 +334,10 @@ int _load_mock_events(FDBKeyValue events[], int num_events, int event_size) {
     events[i].value_length = event_size;
   }
 
+  // Print results.
+  printf("Loaded %ld events into memory.\n", num_events);
+
+  // Success.
   return 0;
 }
 

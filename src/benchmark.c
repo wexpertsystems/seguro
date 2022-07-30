@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "seguro.h"
+#include "test.h"
 
 //==============================================================================
 // External variables.
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
 
   // Print startup information.
   printf("Seguro Phase 2\n\n");
-  printf("Running benchmarks...\n");
+  printf("Running benchmarks...\n\n");
 
   // Start the benchmark with events loaded from LMDB. 
   if (mdb_file) { 

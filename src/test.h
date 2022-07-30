@@ -11,8 +11,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "seguro.h"
-
 //==============================================================================
 // Functions
 //==============================================================================
@@ -27,4 +25,4 @@ int test_read_event_batch(int min_key, int max_key);
 int test_write_event_batch(int min_key, int max_key);
 
 int test_read_fragmented_event_batch(int min_key, int max_key);
-int test_write_fragmented_event_batch(event_t events[]);
+int test_write_fragmented_event_batch(FDBKeyValue events[]);
