@@ -15,6 +15,7 @@
 // External variables.
 //==============================================================================
 
+//! CLI options.
 extern char *optarg;
 
 //==============================================================================
@@ -63,10 +64,10 @@ int main(int argc, char** argv) {
         }
         break;
       case 's':
-        event_size = optarg;
+        event_size = atoi(optarg);
         break;
       case 'b':
-        batch_size = optarg;
+        batch_size = atoi(optarg);
         break;
       case 'f':
         mdb_file = optarg;
@@ -79,16 +80,23 @@ int main(int argc, char** argv) {
   printf("Running benchmarks...\n\n");
 
   // Start the benchmark with events loaded from LMDB. 
+  int err;
   if (mdb_file) { 
     printf("Loading %ld events from LMDB database file: %s", num_events, mdb_file); 
-    run_benchmark_lmdb(mdb_file, batch_size);
+    err = run_benchmark_lmdb(mdb_file, batch_size);
   } 
   // Start the benchmark with mock events.
   else {
     printf("Generating %ld mock events...\n", num_events);
-    run_benchmark_mock(num_events, event_size, batch_size);
+    err = run_benchmark_mock(num_events, event_size, batch_size);
+  }
+
+  if (err != 0) {
+    printf("Benchmark failed.\n");
+    return -1;
   }
 
   // Success.
+  printf("Benchmark completed.\n");
   return 0;
 }
