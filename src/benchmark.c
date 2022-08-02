@@ -1,6 +1,6 @@
 //! @file benchmark.c
 //!
-//! Seguro benchmarking tool.
+//! Reads and writes events into and out of a FoundationDB cluster.
 
 #include <errno.h>
 #include <getopt.h>
@@ -8,18 +8,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "seguro.h"
-#include "test.h"
+#include "events.h"
+#include "db/fdb.h"
 
 //==============================================================================
-// External variables.
+// Variables
 //==============================================================================
 
-//! CLI options.
 extern char *optarg;
+extern pthread_t fdb_network_thread;
 
 //==============================================================================
-// Functions.
+// Prototypes
+//==============================================================================
+
+//! Runs the benchmark for writing one event per transaction to FoundationDB.
+//!
+//! @param[in] fdb  FoundationDB database object.
+//! @param[in] e    Events array to write into the database.
+//! @param[in] n    Number of events to write into the database. 
+//!
+//! @return 0   Success.
+//! @return -1  Failure.
+int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n);
+ 
+//! Runs the benchmark for writing a batch of events per transaction to 
+//! FoundationDB.
+//!
+//! @param[in] fdb  FoundationDB database object.
+//! @param[in] e    Events array to write into the database.
+//! @param[in] n    Number of events to write into the database. 
+//!
+//! @return 0   Success.
+//! @return -1  Failure.
+int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n, int b);
+
+//==============================================================================
+// Functions
 //==============================================================================
 
 //! Accepts arguments from the command-line and executes the Seguro benchmark.
@@ -75,28 +100,166 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Validate options.
+  if (num_events % batch_size != 0) {
+    printf("ERROR: total events modulo batch size must equal 0.\n");
+    exit(1);
+  }
+
   // Print startup information.
   printf("Seguro Phase 2\n\n");
   printf("Running benchmarks...\n\n");
 
-  // Start the benchmark with events loaded from LMDB. 
-  int err;
+  // Event array.
+  FDBKeyValue *events;
+
+  // Load events from LMDB, or generate mock ones.
   if (mdb_file) { 
     printf("Loading %ld events from LMDB database file: %s", num_events, mdb_file); 
-    err = run_benchmark_lmdb(mdb_file, batch_size);
+    events = load_lmdb_events(mdb_file, num_events, event_size);
   } 
-  // Start the benchmark with mock events.
   else {
     printf("Generating %ld mock events...\n", num_events);
-    err = run_benchmark_mock(num_events, event_size, batch_size);
+    events = load_mock_events(num_events, event_size);
   }
 
-  if (err != 0) {
-    printf("Benchmark failed.\n");
-    return -1;
-  }
+  // Initialize a FoundationDB database object.
+  FDBDatabase *fdb = fdb_init();
+
+  // Run the single event per tx write benchmark.
+  run_single_write_benchmark(fdb, events, num_events);
+
+  // Run the batch event write benchmark.
+  // run_batch_write_benchmark(fdb, events, num_events, batch_size);
 
   // Success.
   printf("Benchmark completed.\n");
+  return 0;
+}
+
+int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n) {
+  printf("Writing one event per tx...\n");
+
+  // Start the timer.
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
+
+  // Prepare a transaction object.
+  FDBTransaction *tx;
+  fdb_error_t err;
+
+  // Iterate through events and write each to the database.
+  for (int i = 0; i < n; i++) {
+    // Create a new database transaction.
+    err = fdb_database_create_transaction(fdb, &tx);
+    if (err != 0) {
+      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+      return -1;
+    }
+
+    // Get the key/value pair from the events array.
+    const uint8_t *key = e[i].key;
+    int key_length = e[i].key_length;
+    const uint8_t *value = e[i].value;
+    int value_length = e[i].value_length;
+
+    // Create a transaction with a write of a single key/value pair.
+    fdb_transaction_set(tx, key, key_length, value, value_length);
+
+    // Commit the transaction.
+    FDBFuture *future;
+    future = fdb_transaction_commit(tx);
+
+    // Wait for the future to be ready.
+    err = fdb_future_block_until_ready(future);
+    if (err != 0) {
+      printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
+      return -1;
+    }
+
+    // Check that the future did not return any errors.
+    err = fdb_future_get_error(future);
+    if (err != 0) {
+      return -1;
+    }
+
+    // Destroy the future.
+    fdb_future_destroy(future);
+  }
+
+  // Stop the timer.
+  end = clock();
+  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+  double avg_ms = (cpu_time_used * 1000) / n;
+
+  // Print.
+  printf("Average single event per tx write time: %f\n\n", avg_ms);
+
+  // Success.
+  return 0;
+}
+
+int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n, int b) {
+  printf("Writing batches of %d events per tx...\n", b);
+
+  // Start the timer.
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
+
+  // Prepare a transaction object.
+  FDBTransaction *tx;
+  fdb_error_t err;
+
+  // Iterate through events and write each to the database.
+  for (int i = 0; i < n; i++) {
+    // Create a new database transaction.
+    err = fdb_database_create_transaction(fdb, &tx);
+    if (err != 0) {
+      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+      return -1;
+    }
+
+    // Get a key/value pair from the events array.
+    const char *key = e[i].key;
+    int key_length = e[i].key_length;
+    const char *value = e[i].value;
+    int value_length = e[i].value_length;
+
+    // Create a transaction with a write of a single key/value pair.
+    fdb_transaction_set(tx, key, key_length, value, value_length);
+
+    // Commit the transaction when a batch is ready.
+    if (i % b == 0) {
+      FDBFuture *future;
+      future = fdb_transaction_commit(tx);
+      // Wait for the future to be ready.
+      err = fdb_future_block_until_ready(future);
+      if (err != 0) {
+        printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
+        return -1;
+      }
+
+      // Check that the future did not return any errors.
+      err = fdb_future_get_error(future);
+      if (err != 0) {
+        return -1;
+      }
+
+      // Destroy the future.
+      fdb_future_destroy(future);
+    }
+  }
+
+  // Stop the timer.
+  end = clock();
+  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+  double avg_ms = (cpu_time_used * 1000) / n;
+
+  // Print.
+  printf("Average event write time with batches of %d: %f\n\n", b, avg_ms);
+
+  // Success.
   return 0;
 }

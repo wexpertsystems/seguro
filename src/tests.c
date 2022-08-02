@@ -1,6 +1,6 @@
 //! @file test.c
 //!
-//! Seguro tests.
+//! FoundationDB tests.
 
 #include <math.h>
 #include <pthread.h>

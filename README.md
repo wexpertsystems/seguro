@@ -8,13 +8,13 @@ Dependencies:
 ## Run the benchmark
 
 ```
-gcc benchmark.c -o seguro-benchmark -lfdb_c -llmdb
-./seguro-benchmark
+gcc seguro.c -o seguro -lfdb_c -llmdb
+./seguro
 ```
 
 ## Run the tests
 
 ```
-gcc test.c -o seguro-tests -lfdb_c
+gcc tests.c -o seguro-tests -lfdb_c
 ./seguro-tests
 ```
