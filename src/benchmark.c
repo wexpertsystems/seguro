@@ -130,14 +130,17 @@ int main(int argc, char** argv) {
   run_single_write_benchmark(fdb, events, num_events);
 
   // Run the batch event write benchmark.
-  // run_batch_write_benchmark(fdb, events, num_events, batch_size);
+  run_batch_write_benchmark(fdb, events, num_events, batch_size);
+
+  // Free the events array memory.
+  free((void *) events);
 
   // Success.
   printf("Benchmark completed.\n");
   return 0;
 }
 
-int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n) {
+int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long n) {
   printf("Writing one event per tx...\n");
 
   // Start the timer.
@@ -159,10 +162,10 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n) {
     }
 
     // Get the key/value pair from the events array.
-    const uint8_t *key = e[i].key;
-    int key_length = e[i].key_length;
-    const uint8_t *value = e[i].value;
-    int value_length = e[i].value_length;
+    const char *key = events[i].key;
+    int key_length = events[i].key_length;
+    const char *value = events[i].value;
+    int value_length = events[i].value_length;
 
     // Create a transaction with a write of a single key/value pair.
     fdb_transaction_set(tx, key, key_length, value, value_length);
@@ -186,6 +189,10 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long n) {
 
     // Destroy the future.
     fdb_future_destroy(future);
+
+    // Free key/value memory.
+    free((void *) key);
+    free((void *) value);
   }
 
   // Stop the timer.
