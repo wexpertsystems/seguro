@@ -15,6 +15,10 @@
 #define FDB_API_VERSION 710
 #include <foundationdb/fdb_c.h>
 
+#include "event.h"
+#include "fragment.h"
+
+
 #define CLUSTER_NAME    "fdb.cluster"
 #define DB_NAME         "DB"
 #define MAX_VALUE_SIZE  10000
@@ -135,6 +139,55 @@ int write_event(FDBKeyValue e) {
   return 0;
 }
 
-int write_event_batch(FDBKeyValue events[]) {
+int write_event_batches(FDBDatabase* fdb, 
+                        Event* events, 
+                        int num_events, 
+                        int batch_size) {
+  // Prepare a transaction object.
+  FDBTransaction *tx;
+  fdb_error_t err;
+
+  // Iterate through events and write each to the database.
+  for (int i = 0; i < num_events; i++) {
+    // Create a new database transaction.
+    err = fdb_database_create_transaction(fdb, &tx);
+    if (err != 0) {
+      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+      return -1;
+    }
+
+    // Get the key/value pair from the events array.
+    int num_fragments = get_num_fragments(events[i]);
+    const char *key = events[i].key;
+    int key_length = events[i].key_length;
+    const char *value = events[i].value;
+    int value_length = events[i].value_length;
+
+    // Create a transaction with a write of a single key/value pair.
+    fdb_transaction_set(tx, key, key_length, value, value_length);
+
+    // Commit the transaction when a batch is ready.
+    if (i % batch_size == 0) {
+      FDBFuture *future;
+      future = fdb_transaction_commit(tx);
+      // Wait for the future to be ready.
+      err = fdb_future_block_until_ready(future);
+      if (err != 0) {
+        printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
+        return -1;
+      }
+
+      // Check that the future did not return any errors.
+      err = fdb_future_get_error(future);
+      if (err != 0) {
+        printf("fdb_future_error:\n%s\n", fdb_get_error(err));
+        return -1;
+      }
+
+      // Destroy the future.
+      fdb_future_destroy(future);
+    }
+  }
+
   return 0;
 }

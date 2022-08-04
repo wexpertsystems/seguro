@@ -1,6 +1,6 @@
-//! @file events.c
+//! @file event.c
 //!
-//! Generates or reads events from LMDB, and loads them into memory.
+//! Generates mock events, or reads events from LMDB, and loads them into memory.
 
 #include <lmdb.h>
 #include <math.h>
@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "events.h"
+#include "event.h"
 
 
 //==============================================================================
@@ -21,20 +21,15 @@
 
 //! @n (1) Allocates memory for a new array.
 //! @n (2) Keys and values are uint8_t[].
-FDBKeyValue* load_mock_events(long num_events, int size) {
+Event* load_mock_events(int num_events, int size) {
   // Seed the random number generator.
   srand(time(0));
 
   // Allocate memory for events.
-  FDBKeyValue *events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * (n));
+  Event *events = (Event *) malloc(sizeof(Event) * (num_events));
 
   // Write random key/values into the given array.
-  for (int i = 0; i < n; i++) {
-    // Generate a key.
-    int key_length = count_digits(i);
-    char *key = (char *) malloc(sizeof(char) * key_length);
-    sprintf(key, "%d", i);
-
+  for (int i = 0; i < num_events; i++) {
     // Generate a value.
     char *value = (char *) malloc(sizeof(char) * size);
     for (int j = 0; j < size; j++) {
@@ -44,21 +39,20 @@ FDBKeyValue* load_mock_events(long num_events, int size) {
     }
 
     // Write the key and value into a slot in the array.
-    events[i].key = key;
-    events[i].key_length = key_length;
+    events[i].key = i;
     events[i].value = value;
     events[i].value_length = size;
   }
 
   // Print results.
-  printf("Loaded %ld events into memory.\n\n", n);
+  printf("Loaded %ld events into memory.\n\n", num_events);
 
   // Success.
   return events;
 }
 
 //! @n (1) ...
-FDBKeyValue* load_lmdb_events(char* mdb_file, long num_events, int size) {
+Event* load_lmdb_events(char* mdb_file, int num_events, int size) {
   return NULL;
 }
 

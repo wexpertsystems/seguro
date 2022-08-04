@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "events.h"
+#include "event.h"
 #include "db/fdb.h"
 
 //==============================================================================
@@ -30,7 +30,9 @@ extern pthread_t fdb_network_thread;
 //!
 //! @return 0   Success.
 //! @return -1  Failure.
-int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events);
+int run_single_write_benchmark(FDBDatabase* fdb, 
+                               Event* events, 
+                               int num_events);
  
 //! Runs the benchmark for writing a batch of events per transaction to 
 //! FoundationDB.
@@ -38,18 +40,22 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_e
 //! @param[in] fdb         FoundationDB database object.
 //! @param[in] events      Events array to write into the database.
 //! @param[in] num_events  Number of events to write into the database. 
+//! @param[in] batch_size  Number of events to write for each batch transaction.
 //!
 //! @return 0   Success.
 //! @return -1  Failure.
-int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long num_events, int b);
+int run_batch_write_benchmark(FDBDatabase* fdb, 
+                              Event* events, 
+                              int num_events, 
+                              int batch_size);
 
 //! Releases memory allocated for the given events array.
 //!
-//! @param[in] events  FDBKeyValue array.
+//! @param[in] events  Event array.
 //! @param[in] num_events       Array length.
 //!
 //! @return 0  Success.
-int release_events_memory(FDBKeyValue *events, long num_events);
+int release_events_memory(Event *events, int num_events);
 
 //==============================================================================
 // Functions
@@ -65,7 +71,7 @@ int release_events_memory(FDBKeyValue *events, long num_events);
 int main(int argc, char** argv) {
   // Options.
   int opt;
-  int longindex;
+  int intindex;
   static struct option options[] = {
     // name         has_arg            flag         val
     { "num-events", required_argument, no_argument, 'n' },
@@ -76,7 +82,7 @@ int main(int argc, char** argv) {
   };
 
   // Number of events to generate (or load from file).
-  long num_events = 10000;
+  int num_events = 10000;
   // Event size (in bytes, 10KB by default).
   int event_size = 10000;
   // Batch size (in number of events, 10 by default).
@@ -85,15 +91,15 @@ int main(int argc, char** argv) {
   char *mdb_file = NULL;
 
   // Parse options.
-  while ((opt = getopt_long(argc, argv, "n:s:b:f:", options, &longindex)) != EOF) {
+  while ((opt = getopt_int(argc, argv, "n:s:b:f:", options, &intindex)) != EOF) {
     switch (opt) {
       case 'n':
-        // Parse long integer from string.
+        // Parse int integer from string.
         errno = 0;
         num_events = strtol(optarg, (char **) NULL, 10);
         const bool range_err = errno == ERANGE;
         if (range_err) {
-          printf("ERROR: events must be a valid long integer.\n");
+          printf("ERROR: events must be a valid int integer.\n");
         }
         break;
       case 's':
@@ -119,7 +125,7 @@ int main(int argc, char** argv) {
   printf("Running benchmarks...\n\n");
 
   // Event array.
-  FDBKeyValue *events;
+  Event *events;
 
   // Load events from LMDB, or generate mock ones.
   if (mdb_file) { 
@@ -148,7 +154,7 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-int release_events_memory(FDBKeyValue *events, long num_events) {
+int release_events_memory(Event *events, int num_events) {
   // Release key/value array pairs.
   for (int i = 0; i < num_events; i++) {
     free((void *) events[i].key);
@@ -162,7 +168,7 @@ int release_events_memory(FDBKeyValue *events, long num_events) {
   return 0;
 }
 
-int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events) {
+int run_single_write_benchmark(FDBDatabase* fdb, Event* events, int num_events) {
   printf("Writing one event per tx...\n");
 
   // Start the timer.
@@ -170,47 +176,11 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_e
   double cpu_time_used;
   start = clock();
 
-  // Prepare a transaction object.
-  FDBTransaction *tx;
-  fdb_error_t err;
-
-  // Iterate through events and write each to the database.
-  for (int i = 0; i < num_events; i++) {
-    // Create a new database transaction.
-    err = fdb_database_create_transaction(fdb, &tx);
-    if (err != 0) {
-      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Get the key/value pair from the events array.
-    const char *key = events[i].key;
-    int key_length = events[i].key_length;
-    const char *value = events[i].value;
-    int value_length = events[i].value_length;
-
-    // Create a transaction with a write of a single key/value pair.
-    fdb_transaction_set(tx, key, key_length, value, value_length);
-
-    // Commit the transaction.
-    FDBFuture *future;
-    future = fdb_transaction_commit(tx);
-
-    // Wait for the future to be ready.
-    err = fdb_future_block_until_ready(future);
-    if (err != 0) {
-      printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Check that the future did not return any errors.
-    err = fdb_future_get_error(future);
-    if (err != 0) {
-      return -1;
-    }
-
-    // Destroy the future.
-    fdb_future_destroy(future);
+  // Write the events, one per transaction.
+  int err = write_event_batches(fdb, events, num_events, 1);
+  if (0 != err) {
+    printf("ERROR: Failed writing the events, one per transaction.\n");
+    return -1;
   }
 
   // Stop the timer.
@@ -225,57 +195,22 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_e
   return 0;
 }
 
-int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events, int b) {
-  printf("Writing batches of %d events per tx...\n", b);
+int run_batch_write_benchmark(FDBDatabase* fdb, 
+                              Event* events, 
+                              int num_events, 
+                              int batch_size) {
+  printf("Writing batches of %d events per tx...\n", batch_size);
 
   // Start the timer.
   clock_t start, end;
   double cpu_time_used;
   start = clock();
 
-  // Prepare a transaction object.
-  FDBTransaction *tx;
-  fdb_error_t err;
-
-  // Iterate through events and write each to the database.
-  for (int i = 0; i < num_events; i++) {
-    // Create a new database transaction.
-    err = fdb_database_create_transaction(fdb, &tx);
-    if (err != 0) {
-      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Get the key/value pair from the events array.
-    const char *key = events[i].key;
-    int key_length = events[i].key_length;
-    const char *value = events[i].value;
-    int value_length = events[i].value_length;
-
-    // Create a transaction with a write of a single key/value pair.
-    fdb_transaction_set(tx, key, key_length, value, value_length);
-
-    // Commit the transaction when a batch is ready.
-    if (i % b == 0) {
-      FDBFuture *future;
-      future = fdb_transaction_commit(tx);
-      // Wait for the future to be ready.
-      err = fdb_future_block_until_ready(future);
-      if (err != 0) {
-        printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
-        return -1;
-      }
-
-      // Check that the future did not return any errors.
-      err = fdb_future_get_error(future);
-      if (err != 0) {
-        printf("fdb_future_error:\n%s\n", fdb_get_error(err));
-        return -1;
-      }
-
-      // Destroy the future.
-      fdb_future_destroy(future);
-    }
+  // Write the events in batches.
+  int err = write_event_batches(fdb, events, num_events, batch_size);
+  if (0 != err) {
+    printf("ERROR: Failed writing event batches.\n");
+    return -1;
   }
 
   // Stop the timer.
@@ -284,7 +219,7 @@ int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_ev
   double avg_ms = (cpu_time_used * 1000) / num_events;
 
   // Print.
-  printf("Average event write time with batches of %d: %f\n\n", b, avg_ms);
+  printf("Average event write time with batches of %d: %f\n\n", batch_size, avg_ms);
 
   // Success.
   return 0;

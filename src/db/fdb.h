@@ -2,6 +2,9 @@
 //!
 //! Reads and writes events into and out of a FoundationDB cluster.
 
+#ifndef FDB_H
+#define FDB_H
+
 #include <lmdb.h>
 #include <math.h>
 #include <pthread.h>
@@ -14,6 +17,9 @@
 
 #define FDB_API_VERSION 710
 #include <foundationdb/fdb_c.h>
+
+#include "event.h"
+
 
 #define CLUSTER_NAME    "fdb.cluster"
 #define DB_NAME         "DB"
@@ -50,37 +56,43 @@ void* fdb_init_run_network(void* arg);
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int fdb_shutdown(FDBDatabase *fdb);
+int fdb_shutdown(FDBDatabase* fdb);
 
 //! Reads an event from FoundationDB.
 //!
 //! @param[in] key  Event identifier.
 //!
 //! @return       Pointer to the event.
-//! @return NULL  Failed.
-FDBKeyValue* read_event(FDBDatabase *fdb, int key);
+//! @return NULL  Failed to read the event.
+Event* read_event(FDBDatabase* fdb, int key);
 
 //! Asynchronously reads a batch of events from the FoundationDB cluster, 
-//! specified by the given key range.
+//! specified by the given key range (inclusive).
 //!
+//! @param[in] fdb    FoundationDB database object.
+//! @param[in] start  The first integer key of the range to be read.
+//! @param[in] end    The last integer key of the range to be read.
+
 //! @return       Pointer to the event array.
 //! @return NULL  Failed to read the event batch.
-FDBKeyValue* read_event_batch(FDBDatabase *fdb, int start, int end);
+Event* read_event_batch(FDBDatabase* fdb, int start, int end);
 
 //! Asynchronously writes a single event to the FoundationDB cluster with a 
 //! single FoundationDB transaction.
 //!
-//! @param[in] e  Event to write.
+//! @param[in] event  Event to write.
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int write_event(FDBDatabase *fdb, FDBKeyValue *e);
+int write_event(FDBDatabase* fdb, Event* event);
 
-//! Asynchronously writes a batch of events with a single FoundationDB 
+//! Synchronously writes a batch of events with a single FoundationDB 
 //! transaction.
 //!
-//! @param[in] e  Events to write.
+//! @param[in] events  Events to write.
 //!
 //! @return 0  Success.
 //! @return 1  Failure.
-int write_event_batch(FDBDatabase *fdb, FDBKeyValue* e);
+int write_event_batches(FDBDatabase* fdb, Event* events, int num_events, int batch_size);
+
+#endif

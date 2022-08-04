@@ -1,8 +1,10 @@
-//! @file events.h
+//! @file event.h
 //!
-//! Events.
+//! Events header file.
 
-#include <lmdb.h>
+#ifndef EVENT_H
+#define EVENT_H
+
 #include <math.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -19,17 +21,28 @@
 
 
 //==============================================================================
+// Types
+//==============================================================================
+
+//! Raw event object (needs fragmentation before insertion into FoundationDB).
+typedef struct event_t {
+  uint8_t key;          //! Unsigned integer key.
+  char*   value;        //! Byte buffer value.
+  int     value_length; //! Length of the value's byte array.
+} Event;
+
+//==============================================================================
 // Prototypes
 //==============================================================================
 
-//! Writes mock events into the given array.
+//! Writes raw, non-fragmented, mock events into the given array.
 //!
 //! @param[in] num_events  The number of events to write into an array in memory.
 //! @param[in] size        The size of each event, in bytes.
 //!
 //! @return       Events array.
 //! @return NULL  Failure.
-FDBKeyValue* load_mock_events(long num_events, int size);
+Event* load_mock_events(int num_events, int size);
 
 //! Reads events from LMDB and writes them into an array in memory.
 //!
@@ -39,7 +52,7 @@ FDBKeyValue* load_mock_events(long num_events, int size);
 //!
 //! @return       Events array.
 //! @return NULL  Failure.
-FDBKeyValue* load_lmdb_events(char* mdb_file, long num_events, int size);
+Event* load_lmdb_events(char* mdb_file, int num_events, int size);
 
 //! Counts the number of digits in the given integer.
 //!
@@ -47,3 +60,5 @@ FDBKeyValue* load_lmdb_events(char* mdb_file, long num_events, int size);
 //!
 //! @return  The number of digits.
 int count_digits(int n);
+
+#endif
