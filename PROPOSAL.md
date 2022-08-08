@@ -72,7 +72,7 @@ fragmented with 127 or less total fragments.
 For events which require greater than 127 fragments to be stored, the overflow
 toggle bit is set to 1 and the low 7 bits are used to encode the fragment header
 byte-width instead of the `fragment id`. If those 7 bits encode a value of _x_
-bytes, the following _x_ bytes in the fragment header will contain the
+bytes, the following _x-1_ bytes in the fragment header will contain the
 `fragment id`. Note that, no matter the value of the overflow toggle bit, the
 byte-width and length buckets _always_ have the same byte-widths. Thus, the
 total byte-width of any fragment header is _2x+2_, where _x_ is 1 when the

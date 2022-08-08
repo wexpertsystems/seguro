@@ -18,18 +18,24 @@
 // Types
 //==============================================================================
 
+typedef struct fragmented_event_t {
+  uint8_t      event_id;
+  FDBKeyValue* fragments;
+  uint8_t      num_fragments;
+} FragmentedEvent;
+
 //==============================================================================
 // Prototypes
 //==============================================================================
 
-//! Fragments an oversized, raw event into an array of key/value fragments which 
+//! Fragments a raw event into an array of key/value fragments which 
 //! are ready to be inserted into FoundationDB.
 //!
 //! @param[in] event  The raw event to fragment.
 //!
-//! @return       Array of event fragments.
+//! @return       Fragmented event object.
 //! @return NULL  Failure.
-FDBKeyValue* fragment_event(Event event);
+int fragment_event(Event event, FragmentedEvent* fe);
 
 //! Returns the number of bytes required for the given event's fragment 
 //! header.
