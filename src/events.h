@@ -13,7 +13,7 @@
 #include <time.h>
 
 #ifndef FDB_API_VERSION
-#define FDB_API_VERSION 710
+#define FDB_API_VERSION 630
 #include <foundationdb/fdb_c.h>
 #endif
 

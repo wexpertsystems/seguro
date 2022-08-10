@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define FDB_API_VERSION 710
+#define FDB_API_VERSION 630
 #include <foundationdb/fdb_c.h>
 
 #define CLUSTER_NAME    "fdb.cluster"

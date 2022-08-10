@@ -26,10 +26,10 @@ FDBKeyValue* load_mock_events(long num_events, int size) {
   srand(time(0));
 
   // Allocate memory for events.
-  FDBKeyValue *events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * (n));
+  FDBKeyValue *events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * (num_events));
 
   // Write random key/values into the given array.
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < num_events; i++) {
     // Generate a key.
     int key_length = count_digits(i);
     char *key = (char *) malloc(sizeof(char) * key_length);
@@ -51,7 +51,7 @@ FDBKeyValue* load_mock_events(long num_events, int size) {
   }
 
   // Print results.
-  printf("Loaded %ld events into memory.\n\n", n);
+  printf("Loaded %ld events into memory.\n\n", num_events);
 
   // Success.
   return events;
