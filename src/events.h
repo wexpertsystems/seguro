@@ -5,15 +5,6 @@
 #pragma once
 
 #include <foundationdb/fdb_c.h>
-#include <lmdb.h>
-#include <math.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <time.h>
 
 
 //==============================================================================

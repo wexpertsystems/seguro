@@ -3,6 +3,7 @@
 //! Reads and writes events into and out of a FoundationDB cluster.
 
 #include <errno.h>
+#include <foundationdb/fdb_c.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>

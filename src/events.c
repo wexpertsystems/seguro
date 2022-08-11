@@ -2,14 +2,9 @@
 //!
 //! Generates or reads events from LMDB, and loads them into memory.
 
-#include <lmdb.h>
-#include <math.h>
-#include <pthread.h>
-#include <stdbool.h>
+#include <foundationdb/fdb_c.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <time.h>
 
 #include "events.h"
