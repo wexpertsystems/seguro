@@ -32,11 +32,11 @@ FDBKeyValue* load_mock_events(long num_events, int size) {
   for (int i = 0; i < num_events; i++) {
     // Generate a key.
     int key_length = count_digits(i);
-    char *key = (char *) malloc(sizeof(char) * key_length);
-    sprintf(key, "%d", i);
+    uint8_t *key = (uint8_t *) malloc(sizeof(uint8_t) * key_length);
+    sprintf((char *)key, "%d", i);
 
     // Generate a value.
-    char *value = (char *) malloc(sizeof(char) * size);
+    uint8_t *value = (uint8_t *) malloc(sizeof(uint8_t) * size);
     for (int j = 0; j < size; j++) {
       // 0-255 (all valid bytes).
       int b = rand() % 256;

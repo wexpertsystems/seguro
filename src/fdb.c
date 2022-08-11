@@ -32,6 +32,8 @@ void* fdb_init_run_network(void* arg) {
     printf("fdb_init_run_network: %s\n", fdb_get_error(err));
     exit(-1);
   }
+
+  return NULL;
 }
 
 FDBDatabase* fdb_init(void) {

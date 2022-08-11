@@ -12,13 +12,6 @@
 #include "../fdb.h"
 
 //==============================================================================
-// Variables
-//==============================================================================
-
-//extern char *optarg;
-//extern pthread_t fdb_network_thread;
-
-//==============================================================================
 // Prototypes
 //==============================================================================
 
@@ -184,9 +177,9 @@ int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_e
     }
 
     // Get the key/value pair from the events array.
-    const char *key = events[i].key;
+    uint8_t const *key = events[i].key;
     int key_length = events[i].key_length;
-    const char *value = events[i].value;
+    uint8_t const *value = events[i].value;
     int value_length = events[i].value_length;
 
     // Create a transaction with a write of a single key/value pair.
@@ -247,9 +240,9 @@ int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_ev
     }
 
     // Get the key/value pair from the events array.
-    const char *key = events[i].key;
+    uint8_t const *key = events[i].key;
     int key_length = events[i].key_length;
-    const char *value = events[i].value;
+    uint8_t const *value = events[i].value;
     int value_length = events[i].value_length;
 
     // Create a transaction with a write of a single key/value pair.
