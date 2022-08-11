@@ -2,8 +2,7 @@
 //!
 //! Reads and writes events into and out of a FoundationDB cluster.
 
-#ifndef FDB_H
-#define FDB_H
+#pragma once
 
 #include <foundationdb/fdb_c.h>
 #include <lmdb.h>
@@ -81,5 +80,3 @@ int write_event(FDBDatabase *fdb, FDBKeyValue *e);
 //! @return 0  Success.
 //! @return 1  Failure.
 int write_event_batch(FDBDatabase *fdb, FDBKeyValue* e);
-
-#endif // FDB_H
