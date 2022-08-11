@@ -2,6 +2,10 @@
 //!
 //! Events.
 
+#ifndef EVENTS_H
+#define EVENTS_H
+
+#include <foundationdb/fdb_c.h>
 #include <lmdb.h>
 #include <math.h>
 #include <pthread.h>
@@ -11,11 +15,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-
-#ifndef FDB_API_VERSION
-#define FDB_API_VERSION 630
-#include <foundationdb/fdb_c.h>
-#endif
 
 
 //==============================================================================
@@ -47,3 +46,5 @@ FDBKeyValue* load_lmdb_events(char* mdb_file, long num_events, int size);
 //!
 //! @return  The number of digits.
 int count_digits(int n);
+
+#endif // EVENTS_H

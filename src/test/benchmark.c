@@ -8,15 +8,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "events.h"
-#include "db/fdb.h"
+#include "../events.h"
+#include "../fdb.h"
 
 //==============================================================================
 // Variables
 //==============================================================================
 
-extern char *optarg;
-extern pthread_t fdb_network_thread;
+//extern char *optarg;
+//extern pthread_t fdb_network_thread;
 
 //==============================================================================
 // Prototypes

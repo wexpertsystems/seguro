@@ -12,20 +12,14 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define FDB_API_VERSION 630
-#include <foundationdb/fdb_c.h>
-
-#define CLUSTER_NAME    "fdb.cluster"
-#define DB_NAME         "DB"
-#define MAX_VALUE_SIZE  10000
-#define MAX_RETRIES     5
+#include "fdb.h"
 
 
 //==============================================================================
 // Variables
 //==============================================================================
 
-extern pthread_t fdb_network_thread;
+pthread_t fdb_network_thread;
 
 //==============================================================================
 // Functions
@@ -40,7 +34,7 @@ void* fdb_init_run_network(void* arg) {
   }
 }
 
-FDBDatabase* fdb_init() {
+FDBDatabase* fdb_init(void) {
   const char *cluster_file_path = "/etc/foundationdb/fdb.cluster";
   FDBFuture *fdb_future = NULL;
   
@@ -112,29 +106,5 @@ int fdb_shutdown(FDBDatabase* fdb, pthread_t *t) {
     return -1;
   }
 
-  return 0;
-}
-
-FDBKeyValue* read_event(int key) {
-  // Create transaction object.
-  FDBTransaction *fdb_tx;
-
-  // Create a new database transaction with `fdb_database_create_transaction()`.
-  // Create an `FDBFuture` and set it to the return of `fdb_transaction_get()`.
-  // Block event loop with `fdb_future_block_until_ready()`, retry if needed.
-  // Get the value from the `FDBFuture` with `fdb_future_get_value()`.
-  // Destroy the `FDBFuture` with `fdb_future_destroy()`.
-  return NULL;
-}
-
-FDBKeyValue* read_event_batch(int start, int end) {
-  return NULL;
-}
-
-int write_event(FDBKeyValue e) {
-  return 0;
-}
-
-int write_event_batch(FDBKeyValue events[]) {
   return 0;
 }

@@ -2,6 +2,10 @@
 //!
 //! Reads and writes events into and out of a FoundationDB cluster.
 
+#ifndef FDB_H
+#define FDB_H
+
+#include <foundationdb/fdb_c.h>
 #include <lmdb.h>
 #include <math.h>
 #include <pthread.h>
@@ -11,9 +15,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-
-#define FDB_API_VERSION 630
-#include <foundationdb/fdb_c.h>
 
 #define CLUSTER_NAME    "fdb.cluster"
 #define DB_NAME         "DB"
@@ -29,7 +30,7 @@
 // Variables
 //==============================================================================
 
-pthread_t fdb_network_thread;
+extern pthread_t fdb_network_thread;
 
 //==============================================================================
 // Prototypes
@@ -40,7 +41,7 @@ pthread_t fdb_network_thread;
 //!
 //! @return       Pointer to the FDBDatabase object.
 //! @return NULL  Failed.
-FDBDatabase* fdb_init();
+FDBDatabase* fdb_init(void);
 
 //! Executes fdb_run_network() (for use in a separate thread).
 //! Exits on error.
@@ -50,7 +51,7 @@ void* fdb_init_run_network(void* arg);
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int fdb_shutdown(FDBDatabase *fdb);
+int fdb_shutdown(FDBDatabase *fdb, pthread_t *t);
 
 //! Reads an event from FoundationDB.
 //!
@@ -84,3 +85,5 @@ int write_event(FDBDatabase *fdb, FDBKeyValue *e);
 //! @return 0  Success.
 //! @return 1  Failure.
 int write_event_batch(FDBDatabase *fdb, FDBKeyValue* e);
+
+#endif // FDB_H
