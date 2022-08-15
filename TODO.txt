@@ -1,0 +1,72 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+//  TASKS
+//
+//////////////////////////////////////////////////////////////////////////////
+
+- Write events
+    - Write simple events
+        - Benchmarks
+            - Additional timers (min/avg/max/total)
+            - Write one at a time                                           X
+            - Batch 10 events                                               X
+            - Batch 100 events                                              X
+            - Batch 1000 events                                             X
+    - Write fragmented events
+        - Unit tests
+            - Compute number of fragments correctly for an event
+            - Fragment event correctly (e.g. grocery stick in right place?)
+            - Form headers correctly
+        - Benchmarks
+            - 2 fragment event
+                - Write one fragment at a time
+                - Batch 1 event
+                - Batch 10 events
+                - Batch 100 events
+                - Batch 1000 events
+            - 10 fragment event
+                - Write one fragment at a time
+                - Batch 1 event
+                - Batch 10 events
+                - Batch 100 events
+                - Batch 1000 events
+            - 100 fragment event
+                - Write one fragment at a time
+                - Batch 10 fragments
+                - Batch 1 event
+                - Batch 10 events
+                - Batch 100 events
+                - Batch 1000 events
+            - 200 fragment event
+                - Write one fragment at a time
+                - Batch 10 fragments
+                - Batch 100 fragments
+                - Batch 1 event
+                - Batch 10 events
+                - Batch 100 events
+                - Batch 1000 events
+            - 1000 fragment event
+                - Write one fragment at a time
+                - Batch 10 fragments
+                - Batch 100 fragments
+                - Batch 1 event
+                - Batch 10 events
+                - Batch 100 events
+                - Batch 1000 events
+- Reading events
+    - Read simple events
+        - Unit tests
+            - Roundtrip event
+        - Benchmarks
+            - Roundtrip events
+    - Read fragmented events
+        - Unit tests
+            - Roundtrip event
+        - Benchmarks
+            - Roundtrip events
+                - 2 fragment events
+                - 10 fragment events
+                - 100 fragment events
+                - 200 fragment events
+                - 1000 fragment events
+- Test with real data from LMDB
