@@ -52,11 +52,6 @@ FDBKeyValue* load_mock_events(long num_events, int size) {
   return events;
 }
 
-//! @n (1) ...
-FDBKeyValue* load_lmdb_events(char* mdb_file, long num_events, int size) {
-  return NULL;
-}
-
 //! @n (1) Base 10.
 int count_digits(int n) {
   if (n == 0) {

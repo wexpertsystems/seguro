@@ -16,6 +16,10 @@
 // Prototypes
 //==============================================================================
 
+int run_default_benchmarks(void);
+
+int run_custom_benchmark(long num_events, int event_size, int batch_size);
+
 //! Runs the benchmark for writing one event per transaction to FoundationDB.
 //!
 //! @param[in] fdb  FoundationDB database object.
@@ -45,11 +49,14 @@ int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long num_events,
 //! @return 0  Success.
 int release_events_memory(FDBKeyValue *events, long num_events);
 
+unsigned int parse_pos_int(char const *str);
+
 //==============================================================================
 // Functions
 //==============================================================================
 
-//! Accepts arguments from the command-line and executes the Seguro benchmark.
+//! Execute the Seguro benchmark suite. Takes several command-line arguments
+//! which can be used to specify a custom benchmark.
 //!
 //! @param[in] argc  Number of command-line options provided.
 //! @param[in] argv  Array of command-line options provided.
@@ -60,78 +67,112 @@ int main(int argc, char** argv) {
   // Options.
   int opt;
   int longindex;
-  static struct option options[] = {
-    // name         has_arg            flag         val
-    { "num-events", required_argument, no_argument, 'n' },
-    { "event-size", required_argument, no_argument, 's' },
-    { "batch-size", required_argument, no_argument, 'b' },
-    { "mdb-file"  , required_argument, no_argument, 'f' },
+  static struct option longopts[] = {
+    // name         has_arg            flag   val
+    { "custom",     no_argument,       NULL,  'c' },
+    { "num-events", required_argument, NULL,  'n' },
+    { "event-size", required_argument, NULL,  'e' },
+    { "batch-size", required_argument, NULL,  'b' },
     {NULL, 0, NULL, 0},
   };
 
-  // Number of events to generate (or load from file).
-  long num_events = 10000;
-  // Event size (in bytes, 10KB by default).
-  int event_size = 10000;
-  // Batch size (in number of events, 10 by default).
-  int batch_size = 10;
-  // LMDB file to load events from.
-  char *mdb_file = NULL;
+  // Variables for custom benchmark
+  // Run custom benchmark?
+  bool custom_benchmark = false;
+  // Number of events to generate.
+  unsigned int num_events = 10000;
+  // Event size in bytes (10KB by default).
+  unsigned int event_size = 10000;
+  // Event batch size (10 by default).
+  unsigned int batch_size = 10;
 
   // Parse options.
-  while ((opt = getopt_long(argc, argv, "n:s:b:f:", options, &longindex)) != EOF) {
+  while ((opt = getopt_long(argc, argv, "-cn:e:b:", longopts, &longindex)) != EOF) {
     switch (opt) {
+      case 'c':
+        custom_benchmark = true;
+        break;
       case 'n':
-        // Parse long integer from string.
-        errno = 0;
-        num_events = strtol(optarg, (char **) NULL, 10);
-        const bool range_err = errno == ERANGE;
-        if (range_err) {
-          printf("ERROR: events must be a valid long integer.\n");
+        num_events = parse_pos_int(optarg);
+        if (!num_events) {
+          printf("%s: 'num-events' expects a positive integer argument.\n", argv[0]);
+          exit(1);
         }
         break;
-      case 's':
-        event_size = atoi(optarg);
+      case 'e':
+        event_size = parse_pos_int(optarg);
+        if (!event_size) {
+          printf("%s: 'event-size' expects a positive integer argument.\n", argv[0]);
+          exit(1);
+        }
         break;
       case 'b':
-        batch_size = atoi(optarg);
+        batch_size = parse_pos_int(optarg);
+        if (!batch_size) {
+          printf("%s: 'batch-size' expects a positive integer argument.\n", argv[0]);
+          exit(1);
+        }
         break;
-      case 'f':
-        mdb_file = optarg;
-        break;
+      case 1:
+        printf ("%s: unexpected argument '%s'\n", argv[0], optarg);
+      default: // '?', ':', 0
+        exit(1);
     }
   }
 
-  // Validate options.
-  if (num_events % batch_size != 0) {
-    printf("ERROR: total events modulo batch size must equal 0.\n");
-    exit(1);
-  }
-
   // Print startup information.
-  printf("Seguro Phase 2\n\n");
-  printf("Running benchmarks...\n\n");
+  printf("Seguro Phase 2 benchmarks...\n");
+
+  if (custom_benchmark) {
+    printf("Running custom benchmark...\n");
+    return run_custom_benchmark(num_events, event_size, batch_size);
+  } else {
+    printf("Running default suite...\n");
+    return run_default_benchmarks();
+  }
+}
+
+int run_default_benchmarks(void) {
+
+  long num_events = 10000;
+  int event_size = 10000;
 
   // Event array.
   FDBKeyValue *events;
 
-  // Load events from LMDB, or generate mock ones.
-  if (mdb_file) { 
-    printf("Loading %ld events from LMDB database file: %s", num_events, mdb_file); 
-    events = load_lmdb_events(mdb_file, num_events, event_size);
-  } 
-  else {
-    printf("Generating %ld mock events...\n", num_events);
-    events = load_mock_events(num_events, event_size);
-  }
+  // Generate mock events.
+  printf("Generating %ld mock events...\n", num_events);
+  events = load_mock_events(num_events, event_size);
 
   // Initialize a FoundationDB database object.
   FDBDatabase *fdb = fdb_init();
 
-  // Run the single event per tx write benchmark.
+  // Run the write benchmarks.
   run_single_write_benchmark(fdb, events, num_events);
+  run_batch_write_benchmark(fdb, events, num_events, 10);
+  run_batch_write_benchmark(fdb, events, num_events, 100);
+  run_batch_write_benchmark(fdb, events, num_events, 1000);
 
-  // Run the batch event write benchmark.
+  // Release the events array memory.
+  release_events_memory(events, num_events);
+
+  // Success.
+  printf("Benchmark completed.\n");
+  return 0;
+}
+
+int run_custom_benchmark(long num_events, int event_size, int batch_size) {
+  // Event array.
+  FDBKeyValue *events;
+
+  // Generate mock events.
+  printf("Generating %ld mock events...\n", num_events);
+  events = load_mock_events(num_events, event_size);
+
+  // Initialize a FoundationDB database object.
+  FDBDatabase *fdb = fdb_init();
+
+  // Run the benchmark.
   run_batch_write_benchmark(fdb, events, num_events, batch_size);
 
   // Release the events array memory.
@@ -250,7 +291,7 @@ int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_ev
     fdb_transaction_set(tx, key, key_length, value, value_length);
 
     // Commit the transaction when a batch is ready.
-    if (i % b == 0) {
+    if (((i % b) == 0) || ((i + 1) == num_events)) {
       FDBFuture *future;
       future = fdb_transaction_commit(tx);
       // Wait for the future to be ready.
@@ -282,4 +323,13 @@ int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_ev
 
   // Success.
   return 0;
+}
+
+unsigned int parse_pos_int(char const *str) {
+  int parsed_num = atoi(str);
+  if (parsed_num < 1) {
+    return 0;
+  }
+
+  return (unsigned int)parsed_num;
 }

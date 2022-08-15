@@ -36,6 +36,10 @@ BENCHMARK_CMD := $(addprefix $(BIN_DIR),seguro-benchmark)
 # RULES
 #==============================================================================
 
+# Default target. Compile & link all source files, then print usage instructions.
+#
+default : $(BENCHMARK_CMD) help
+
 # Helpful rule which lists all other rules and encourages documentation
 #
 # target: help - Display all targets in makefile
