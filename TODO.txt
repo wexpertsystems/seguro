@@ -5,9 +5,9 @@
 //////////////////////////////////////////////////////////////////////////////
 
 - Write events
-    - Write simple events
-        - Benchmarks
-            - Additional timers (min/avg/max/total)
+    - Write simple events                                                   X
+        - Local benchmarks                                                  X
+            - Additional timers (min/avg/max/total)                         X
             - Write one at a time                                           X
             - Batch 10 events                                               X
             - Batch 100 events                                              X
@@ -15,9 +15,9 @@
     - Write fragmented events
         - Unit tests
             - Compute number of fragments correctly for an event
-            - Fragment event correctly (e.g. grocery stick in right place?)
+            - Fragment event correctly (i.e. grocery stick in right place?)
             - Form headers correctly
-        - Benchmarks
+        - Local benchmarks
             - 2 fragment event
                 - Write one fragment at a time
                 - Batch 1 event

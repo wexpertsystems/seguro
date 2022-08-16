@@ -4,10 +4,12 @@
 
 #include <foundationdb/fdb_c.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "../events.h"
 #include "../fdb.h"
@@ -222,29 +224,46 @@ int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batc
 int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, uint32_t batch_size) {
 
   // Setup timers
-  clock_t start, end;
-  double cpu_time_used;
+  clock_t t_start, t_end, b_start, b_end, b_diff;
+  clock_t b_max = 0;
+  clock_t b_min = (clock_t)INT_MAX;
+  double total_time;
   int err;
 
   printf("Writing %u events in batches of %u...\n", num_events, batch_size);
 
   // Start timer
-  start = clock();
+  t_start = clock();
 
   // Perform batched writes
   for(uint32_t i = 0; i < num_events; i += batch_size) {
+    // Time each batch write
+    b_start = clock();
+
     err = write_event_batch(fdb, (events + i), batch_size);
     if (err != 0) goto fatal_error;
+
+    // Record batch time if new min or new max set
+    b_end = clock();
+    b_diff = b_end - b_start;
+    if (b_diff > b_max) {
+      b_max = b_diff;
+    } else if (b_diff < b_min) {
+      b_min = b_diff;
+    }
   }
 
   // Stop the timer
-  end = clock();
+  t_end = clock();
 
   // Compute timing stats
-  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
-  double avg_ms = (cpu_time_used * 1000) / num_events;
+  total_time = ((double)(t_end - t_start)) / CLOCKS_PER_SEC;
 
-  printf("Average single event per tx write time: %f\n", avg_ms);
+  printf("Total time to write events: %.2f s\n", total_time);
+  printf("Average time per event:     %.4f ms\n", (1000.0 * total_time / num_events));
+  printf("Max batch time:             %.4f ms\n", (1000.0 * b_max / CLOCKS_PER_SEC));
+  printf("Avg batch time:             %.4f ms\n", (1000.0 * total_time / (num_events / batch_size)));
+  printf("Min batch time:             %.4f ms\n", (1000.0 * b_min / CLOCKS_PER_SEC));
 
   // Clean up database
   printf("Cleaning events from database...\n\n");
