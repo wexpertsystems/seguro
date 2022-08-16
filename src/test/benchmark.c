@@ -2,11 +2,11 @@
 //!
 //! Reads and writes events into and out of a FoundationDB cluster.
 
-#include <errno.h>
 #include <foundationdb/fdb_c.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "../events.h"
@@ -16,77 +16,93 @@
 // Prototypes
 //==============================================================================
 
+//! Run the default benchmarking suite for Seguro.
+//!
+//! @return   Error code or 0 if no error.
 int run_default_benchmarks(void);
 
-int run_custom_benchmark(long num_events, int event_size, int batch_size);
+//! Run a custom benchmark test on Seguro.
+//!
+//! @param[in] num_events   The number of events to test writing.
+//! @param[in] event_size   The size of each event, in bytes.
+//! @param[in] batch_size   The number of events to write per FDB transaction.
+//!
+//! @return   Error code or 0 if no error.
+int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size);
 
-//! Runs the benchmark for writing one event per transaction to FoundationDB.
+//! Run a single benchmark test, timing the results and printing them to console.
 //!
-//! @param[in] fdb  FoundationDB database object.
-//! @param[in] e    Events array to write into the database.
-//! @param[in] num_events    Number of events to write into the database. 
+//! @param[in] fdb          FoundationDB handle.
+//! @param[in] events       Array of events to write to FDB.
+//! @param[in] num_events   The number of events in the array.
+//! @param[in] batch_size   The number of events to write per FDB transaction.
 //!
-//! @return 0   Success.
-//! @return -1  Failure.
-int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events);
- 
-//! Runs the benchmark for writing a batch of events per transaction to 
-//! FoundationDB.
-//!
-//! @param[in] fdb         FoundationDB database object.
-//! @param[in] events      Events array to write into the database.
-//! @param[in] num_events  Number of events to write into the database. 
-//!
-//! @return 0   Success.
-//! @return -1  Failure.
-int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* e, long num_events, int b);
+//! @return   Error code or 0 if no error.
+int timed_benchmark(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events, uint32_t batch_size);
 
-//! Releases memory allocated for the given events array.
+//! Generate an array of mock events.
 //!
-//! @param[in] events  FDBKeyValue array.
-//! @param[in] num_events       Array length.
+//! @param[in] num_events  The number of events to generate.
+//! @param[in] size        The size of each event, in bytes.
 //!
-//! @return 0  Success.
-int release_events_memory(FDBKeyValue *events, long num_events);
+//! @return       Array of events.
+//! @return NULL  Failure.
+FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size);
 
-unsigned int parse_pos_int(char const *str);
+//! Releases memory allocated for an array of events.
+//!
+//! @param[in] events       Array of events to free.
+//! @param[in] num_events   The number of events in the array.
+//!
+//! @return   Error code or 0 if no error.
+int release_events_memory(FDBKeyValue *events, uint32_t num_events);
+
+//! Parse a positive integer from a string.
+//!
+//! @param[in] str  The string to parse.
+//!
+//! @return     A positive integer.
+//! @return 0   Failure.
+uint32_t parse_pos_int(char const *str);
 
 //==============================================================================
 // Functions
 //==============================================================================
 
-//! Execute the Seguro benchmark suite. Takes several command-line arguments
-//! which can be used to specify a custom benchmark.
+//! Execute the Seguro benchmark suite. Takes several command-line arguments which can be used to specify a custom
+//! benchmark.
 //!
 //! @param[in] argc  Number of command-line options provided.
 //! @param[in] argv  Array of command-line options provided.
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int main(int argc, char** argv) {
-  // Options.
+int main(int argc, char **argv) {
+
+  // Variables to parse command line options using getopt
   int opt;
   int longindex;
   static struct option longopts[] = {
     // name         has_arg            flag   val
-    { "custom",     no_argument,       NULL,  'c' },
-    { "num-events", required_argument, NULL,  'n' },
-    { "event-size", required_argument, NULL,  'e' },
-    { "batch-size", required_argument, NULL,  'b' },
-    {NULL, 0, NULL, 0},
+    { "custom",     no_argument,       NULL, 'c' },
+    { "num-events", required_argument, NULL, 'n' },
+    { "event-size", required_argument, NULL, 'e' },
+    { "batch-size", required_argument, NULL, 'b' },
+    {NULL,          0,                 NULL, 0}
   };
 
   // Variables for custom benchmark
+
   // Run custom benchmark?
   bool custom_benchmark = false;
-  // Number of events to generate.
-  unsigned int num_events = 10000;
-  // Event size in bytes (10KB by default).
-  unsigned int event_size = 10000;
-  // Event batch size (10 by default).
-  unsigned int batch_size = 10;
+  // Number of events to generate
+  uint32_t num_events = 10000;
+  // Event size in bytes (10KB by default)
+  uint32_t event_size = 10000;
+  // Event batch size (10 by default)
+  uint32_t batch_size = 10;
 
-  // Parse options.
+  // Parse options
   while ((opt = getopt_long(argc, argv, "-cn:e:b:", longopts, &longindex)) != EOF) {
     switch (opt) {
       case 'c':
@@ -120,7 +136,16 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Print startup information.
+  // Validate input arguments
+
+  // To keep timing stats consistent, events should split evenly into a whole number of batches
+  if (num_events % batch_size) {
+    printf ("%s: num-events (%u) not divisable by batch_size (%u)\n", argv[0], num_events, batch_size);
+    exit(1);
+  }
+
+  // Run benchmark(s)
+
   printf("Seguro Phase 2 benchmarks...\n");
 
   if (custom_benchmark) {
@@ -130,206 +155,149 @@ int main(int argc, char** argv) {
     printf("Running default suite...\n");
     return run_default_benchmarks();
   }
+
+  printf("Benchmarks completed.\n");
+
+  // Success
+  return 0;
 }
 
 int run_default_benchmarks(void) {
 
-  long num_events = 10000;
-  int event_size = 10000;
+  // Default benchmark suite event settings
+  uint32_t num_events = 10000;
+  uint32_t event_size = 10000;
 
-  // Event array.
-  FDBKeyValue *events;
+  // Generate mock events
+  printf("Generating %u mock events...\n", num_events);
+  FDBKeyValue *events = load_mock_events(num_events, event_size);
 
-  // Generate mock events.
-  printf("Generating %ld mock events...\n", num_events);
-  events = load_mock_events(num_events, event_size);
-
-  // Initialize a FoundationDB database object.
+  // Initialize FoundationDB database
   FDBDatabase *fdb = fdb_init();
 
-  // Run the write benchmarks.
-  run_single_write_benchmark(fdb, events, num_events);
-  run_batch_write_benchmark(fdb, events, num_events, 10);
-  run_batch_write_benchmark(fdb, events, num_events, 100);
-  run_batch_write_benchmark(fdb, events, num_events, 1000);
+  // Run the write benchmarks
+  timed_benchmark(fdb, events, num_events, 1);
+  timed_benchmark(fdb, events, num_events, 10);
+  timed_benchmark(fdb, events, num_events, 100);
+  timed_benchmark(fdb, events, num_events, 1000);
 
-  // Release the events array memory.
+  // Clean up heap
   release_events_memory(events, num_events);
 
-  // Success.
-  printf("Benchmark completed.\n");
+  // Success
   return 0;
 }
 
-int run_custom_benchmark(long num_events, int event_size, int batch_size) {
-  // Event array.
-  FDBKeyValue *events;
+int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
 
-  // Generate mock events.
-  printf("Generating %ld mock events...\n", num_events);
-  events = load_mock_events(num_events, event_size);
+  // Generate mock events
+  printf("Generating %u mock events...\n", num_events);
+  FDBKeyValue *events = load_mock_events(num_events, event_size);
 
-  // Initialize a FoundationDB database object.
+  // Initialize FoundationDB database
   FDBDatabase *fdb = fdb_init();
 
-  // Run the benchmark.
-  run_batch_write_benchmark(fdb, events, num_events, batch_size);
+  // Run the custom write benchmark
+  timed_benchmark(fdb, events, num_events, batch_size);
 
-  // Release the events array memory.
+  // Clean up heap
   release_events_memory(events, num_events);
 
-  // Success.
-  printf("Benchmark completed.\n");
+  // Success
   return 0;
 }
 
-int release_events_memory(FDBKeyValue *events, long num_events) {
-  // Release key/value array pairs.
-  for (int i = 0; i < num_events; i++) {
+int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, uint32_t batch_size) {
+
+  // Setup timers
+  clock_t start, end;
+  double cpu_time_used;
+  int err;
+
+  printf("Writing %u events in batches of %u...\n", num_events, batch_size);
+
+  // Start timer
+  start = clock();
+
+  // Perform batched writes
+  for(uint32_t i = 0; i < num_events; i += batch_size) {
+    err = write_event_batch(fdb, (events + i), batch_size);
+
+    if (err != 0) {
+      printf("Aborting execution due to error...\n");
+      exit(1);
+    }
+  }
+
+  // Stop the timer
+  end = clock();
+
+  // Compute timing stats
+  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
+  double avg_ms = (cpu_time_used * 1000) / num_events;
+
+  printf("Average single event per tx write time: %f\n\n", avg_ms);
+
+  // Success
+  return 0;
+}
+
+//! @n (1) Allocates memory for a new array.
+//! @n (2) Keys and values are uint8_t[].
+FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size) {
+
+  // Seed the random number generator
+  srand(time(0));
+
+  // Allocate memory for events
+  FDBKeyValue *events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * num_events);
+
+  // Write random key/values into the given array.
+  for (uint32_t i = 0; i < num_events; i++) {
+    // Generate key (unique event ID)
+    int key_length = count_digits(i);
+    uint8_t *key = (uint8_t *) malloc(sizeof(uint8_t) * key_length);
+    sprintf((char *)key, "%d", i);
+
+    // Generate a value (random bytes)
+    uint8_t *value = (uint8_t *) malloc(sizeof(uint8_t) * size);
+    for (uint32_t j = 0; j < size; j++) {
+      value[j] = rand() % 256;
+    }
+
+    // Set event properties
+    events[i].key = key;
+    events[i].key_length = key_length;
+    events[i].value = value;
+    events[i].value_length = size;
+  }
+
+  printf("Loaded %u events into memory.\n\n", num_events);
+
+  return events;
+}
+
+int release_events_memory(FDBKeyValue *events, uint32_t num_events) {
+
+  // Release event key/value pairs
+  for (uint32_t i = 0; i < num_events; i++) {
     free((void *) events[i].key);
     free((void *) events[i].value);
   }
 
-  // Release events.
+  // Release events array
   free((void *) events);
 
-  // Success.
+  // Success
   return 0;
 }
 
-int run_single_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events) {
-  printf("Writing one event per tx...\n");
+uint32_t parse_pos_int(char const *str) {
 
-  // Start the timer.
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  // Prepare a transaction object.
-  FDBTransaction *tx;
-  fdb_error_t err;
-
-  // Iterate through events and write each to the database.
-  for (int i = 0; i < num_events; i++) {
-    // Create a new database transaction.
-    err = fdb_database_create_transaction(fdb, &tx);
-    if (err != 0) {
-      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Get the key/value pair from the events array.
-    uint8_t const *key = events[i].key;
-    int key_length = events[i].key_length;
-    uint8_t const *value = events[i].value;
-    int value_length = events[i].value_length;
-
-    // Create a transaction with a write of a single key/value pair.
-    fdb_transaction_set(tx, key, key_length, value, value_length);
-
-    // Commit the transaction.
-    FDBFuture *future;
-    future = fdb_transaction_commit(tx);
-
-    // Wait for the future to be ready.
-    err = fdb_future_block_until_ready(future);
-    if (err != 0) {
-      printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Check that the future did not return any errors.
-    err = fdb_future_get_error(future);
-    if (err != 0) {
-      return -1;
-    }
-
-    // Destroy the future.
-    fdb_future_destroy(future);
-  }
-
-  // Stop the timer.
-  end = clock();
-  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
-  double avg_ms = (cpu_time_used * 1000) / num_events;
-
-  // Print.
-  printf("Average single event per tx write time: %f\n\n", avg_ms);
-
-  // Success.
-  return 0;
-}
-
-int run_batch_write_benchmark(FDBDatabase* fdb, FDBKeyValue* events, long num_events, int b) {
-  printf("Writing batches of %d events per tx...\n", b);
-
-  // Start the timer.
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  // Prepare a transaction object.
-  FDBTransaction *tx;
-  fdb_error_t err;
-
-  // Iterate through events and write each to the database.
-  for (int i = 0; i < num_events; i++) {
-    // Create a new database transaction.
-    err = fdb_database_create_transaction(fdb, &tx);
-    if (err != 0) {
-      printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
-      return -1;
-    }
-
-    // Get the key/value pair from the events array.
-    uint8_t const *key = events[i].key;
-    int key_length = events[i].key_length;
-    uint8_t const *value = events[i].value;
-    int value_length = events[i].value_length;
-
-    // Create a transaction with a write of a single key/value pair.
-    fdb_transaction_set(tx, key, key_length, value, value_length);
-
-    // Commit the transaction when a batch is ready.
-    if (((i % b) == 0) || ((i + 1) == num_events)) {
-      FDBFuture *future;
-      future = fdb_transaction_commit(tx);
-      // Wait for the future to be ready.
-      err = fdb_future_block_until_ready(future);
-      if (err != 0) {
-        printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
-        return -1;
-      }
-
-      // Check that the future did not return any errors.
-      err = fdb_future_get_error(future);
-      if (err != 0) {
-        printf("fdb_future_error:\n%s\n", fdb_get_error(err));
-        return -1;
-      }
-
-      // Destroy the future.
-      fdb_future_destroy(future);
-    }
-  }
-
-  // Stop the timer.
-  end = clock();
-  cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
-  double avg_ms = (cpu_time_used * 1000) / num_events;
-
-  // Print.
-  printf("Average event write time with batches of %d: %f\n\n", b, avg_ms);
-
-  // Success.
-  return 0;
-}
-
-unsigned int parse_pos_int(char const *str) {
-  int parsed_num = atoi(str);
+  int32_t parsed_num = atoi(str);
   if (parsed_num < 1) {
     return 0;
   }
 
-  return (unsigned int)parsed_num;
+  return (uint32_t)parsed_num;
 }

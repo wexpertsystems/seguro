@@ -6,11 +6,7 @@
 
 #include <foundationdb/fdb_c.h>
 #include <pthread.h>
-
-#define CLUSTER_NAME    "fdb.cluster"
-#define DB_NAME         "DB"
-#define MAX_VALUE_SIZE  10000
-#define MAX_RETRIES     5
+#include <stdint.h>
 
 
 //==============================================================================
@@ -23,52 +19,39 @@ extern pthread_t fdb_network_thread;
 // Prototypes
 //==============================================================================
 
-//! Initializes a FoundationDB connection, for use with top-level read/write 
-//! initialization functions fdb_read_init() and fdb_write_init().
+//! Initializes a FoundationDB connection, for use with top-level read/write initialization functions.
 //!
-//! @return       Pointer to the FDBDatabase object.
+//! @return       FoundationDB database handle.
 //! @return NULL  Failed.
 FDBDatabase* fdb_init(void);
 
-//! Executes fdb_run_network() (for use in a separate thread).
-//! Exits on error.
-void* fdb_init_run_network(void* arg);
+//! Executes fdb_run_network() (for use in a separate thread). Exits on error.
+void *fdb_init_run_network(void *arg);
 
-//! Shuts down the FoundationDB network.
+//! Shut down the FoundationDB network thread.
+//!
+//! @param[in] fdb  FoundationDB database handle.
+//! @param[in] t    Handle for thread running FoudationDB network connection.
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
 int fdb_shutdown(FDBDatabase *fdb, pthread_t *t);
 
-//! Reads an event from FoundationDB.
+//! Write a single event to FoundationDB in a single transaction.
 //!
-//! @param[in] key  Event identifier.
+//! @param[in] fdb    FoundationDB database handle.
+//! @param[in] event  Event to write.
 //!
-//! @return       Pointer to the event.
-//! @return NULL  Failed.
-FDBKeyValue* read_event(FDBDatabase *fdb, int key);
+//! @return  0  Success.
+//! @return -1  Failure.
+int write_event(FDBDatabase *fdb, FDBKeyValue *event);
 
-//! Asynchronously reads a batch of events from the FoundationDB cluster, 
-//! specified by the given key range.
+//! Write a several events to FoundationDB in a single transaction.
 //!
-//! @return       Pointer to the event array.
-//! @return NULL  Failed to read the event batch.
-FDBKeyValue* read_event_batch(FDBDatabase *fdb, int start, int end);
-
-//! Asynchronously writes a single event to the FoundationDB cluster with a 
-//! single FoundationDB transaction.
+//! @param[in] fdb          FoundationDB database handle.
+//! @param[in] events       Array of events to write.
+//! @param[in] batch_size   Number of events to write.
 //!
-//! @param[in] e  Event to write.
-//!
-//! @return 0  Success.
-//! @return 1  Failure.
-int write_event(FDBDatabase *fdb, FDBKeyValue *e);
-
-//! Asynchronously writes a batch of events with a single FoundationDB 
-//! transaction.
-//!
-//! @param[in] e  Events to write.
-//!
-//! @return 0  Success.
-//! @return 1  Failure.
-int write_event_batch(FDBDatabase *fdb, FDBKeyValue* e);
+//! @return  0  Success.
+//! @return -1  Failure.
+int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size);
