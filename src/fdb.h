@@ -55,3 +55,13 @@ int write_event(FDBDatabase *fdb, FDBKeyValue *event);
 //! @return  0  Success.
 //! @return -1  Failure.
 int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size);
+
+//! Remove given events from FoundationDB.
+//!
+//! @param[in] fdb          FoundationDB database handle.
+//! @param[in] events       Array of events to remove.
+//! @param[in] batch_size   Number of events in array.
+//!
+//! @return  0  Success.
+//! @return -1  Failure.
+int clear_events(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events);

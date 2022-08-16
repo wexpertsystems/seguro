@@ -121,7 +121,6 @@ int write_event(FDBDatabase *fdb, FDBKeyValue *event) {
 
 int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size) {
 
-  // Prepare a transaction object
   FDBTransaction *tx;
   fdb_error_t err;
 
@@ -146,14 +145,56 @@ int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size
   future = fdb_transaction_commit(tx);
 
   // TODO: Synchornous; need to test asynchronous version
-  // Wait for the future to be ready.
+  // Wait for the future to be ready
   err = fdb_future_block_until_ready(future);
   if (err != 0) {
     printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
     return -1;
   }
 
-  // Check that the future did not return any errors.
+  // Check that the future did not return any errors
+  err = fdb_future_get_error(future);
+  if (err != 0) {
+    printf("fdb_future_error:\n%s\n", fdb_get_error(err));
+    return -1;
+  }
+
+  // Destroy the future
+  fdb_future_destroy(future);
+
+  return 0;
+}
+
+int clear_events(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events) {
+
+  FDBTransaction *tx;
+  fdb_error_t err;
+
+  // Create a new database "transaction" (actually a snapshot of diffs to apply as a single transaction)
+  err = fdb_database_create_transaction(fdb, &tx);
+  if (err != 0) {
+    printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+    return -1;
+  }
+
+  // Remove the key for each event
+  for (uint32_t i = 0; i < num_events; i++) {
+    fdb_transaction_clear(tx, events[i].key, events[i].key_length);
+  }
+
+  // Commit batched clear transaction
+  FDBFuture *future;
+  future = fdb_transaction_commit(tx);
+
+  // TODO: Can clears be async?
+  // Wait for the future to be ready
+  err = fdb_future_block_until_ready(future);
+  if (err != 0) {
+    printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
+    return -1;
+  }
+
+  // Check that the future did not return any errors
   err = fdb_future_get_error(future);
   if (err != 0) {
     printf("fdb_future_error:\n%s\n", fdb_get_error(err));

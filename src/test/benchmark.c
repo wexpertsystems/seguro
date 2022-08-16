@@ -137,8 +137,6 @@ int main(int argc, char **argv) {
   }
 
   // Validate input arguments
-
-  // To keep timing stats consistent, events should split evenly into a whole number of batches
   if (num_events % batch_size) {
     printf ("%s: num-events (%u) not divisable by batch_size (%u)\n", argv[0], num_events, batch_size);
     exit(1);
@@ -165,7 +163,17 @@ int main(int argc, char **argv) {
 int run_default_benchmarks(void) {
 
   // Default benchmark suite event settings
-  uint32_t num_events = 10000;
+
+  // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
+  // write, keys + ranges for read).
+  //
+  // In addition, to keep timing stats consistent between tests, each batch should be identical in size for each
+  // benchmark.
+  //
+  // Therefore, we want a large number of events, divisable by as many batch sizes as possible (all less than 1000).
+  // 9000 appears to be a good compromise.
+  //
+  uint32_t num_events = 9000;
   uint32_t event_size = 10000;
 
   // Generate mock events
@@ -179,7 +187,11 @@ int run_default_benchmarks(void) {
   timed_benchmark(fdb, events, num_events, 1);
   timed_benchmark(fdb, events, num_events, 10);
   timed_benchmark(fdb, events, num_events, 100);
-  timed_benchmark(fdb, events, num_events, 1000);
+  timed_benchmark(fdb, events, num_events, 200);
+  timed_benchmark(fdb, events, num_events, 300);
+  timed_benchmark(fdb, events, num_events, 450);
+  timed_benchmark(fdb, events, num_events, 600);
+  timed_benchmark(fdb, events, num_events, 900);
 
   // Clean up heap
   release_events_memory(events, num_events);
@@ -222,11 +234,7 @@ int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, 
   // Perform batched writes
   for(uint32_t i = 0; i < num_events; i += batch_size) {
     err = write_event_batch(fdb, (events + i), batch_size);
-
-    if (err != 0) {
-      printf("Aborting execution due to error...\n");
-      exit(1);
-    }
+    if (err != 0) goto fatal_error;
   }
 
   // Stop the timer
@@ -236,14 +244,23 @@ int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, 
   cpu_time_used = ((double) (end - start) / CLOCKS_PER_SEC);
   double avg_ms = (cpu_time_used * 1000) / num_events;
 
-  printf("Average single event per tx write time: %f\n\n", avg_ms);
+  printf("Average single event per tx write time: %f\n", avg_ms);
+
+  // Clean up database
+  printf("Cleaning events from database...\n\n");
+
+  err = clear_events(fdb, events, num_events);
+  if (err != 0) goto fatal_error;
 
   // Success
   return 0;
+
+  // Failure
+  fatal_error:
+  printf("Fatal error during write benchmark\n");
+  exit(1);
 }
 
-//! @n (1) Allocates memory for a new array.
-//! @n (2) Keys and values are uint8_t[].
 FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size) {
 
   // Seed the random number generator
