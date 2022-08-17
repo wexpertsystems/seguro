@@ -1,6 +1,6 @@
 //! @file benchmark.c
 //!
-//! Reads and writes events into and out of a FoundationDB cluster.
+//! Benchmark suite for Seguro.
 
 #include <foundationdb/fdb_c.h>
 #include <getopt.h>
@@ -11,8 +11,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../events.h"
+#include "../event.h"
 #include "../fdb.h"
+#include "../fragment.h"
 
 //==============================================================================
 // Prototypes
@@ -20,17 +21,20 @@
 
 //! Run the default benchmarking suite for Seguro.
 //!
+//! @param[in] fdb  FoundationDB handle.
+//!
 //! @return   Error code or 0 if no error.
-int run_default_benchmarks(void);
+int run_default_benchmarks(FDBDatabase *fdb);
 
 //! Run a custom benchmark test on Seguro.
 //!
+//! @param[in] fdb          FoundationDB handle.
 //! @param[in] num_events   The number of events to test writing.
 //! @param[in] event_size   The size of each event, in bytes.
 //! @param[in] batch_size   The number of events to write per FDB transaction.
 //!
 //! @return   Error code or 0 if no error.
-int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size);
+int run_custom_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_size, uint32_t batch_size);
 
 //! Run a single benchmark test, timing the results and printing them to console.
 //!
@@ -40,7 +44,7 @@ int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batc
 //! @param[in] batch_size   The number of events to write per FDB transaction.
 //!
 //! @return   Error code or 0 if no error.
-int timed_benchmark(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events, uint32_t batch_size);
+int timed_benchmark(FDBDatabase *fdb, Event *events, uint32_t num_events, uint32_t batch_size);
 
 //! Generate an array of mock events.
 //!
@@ -49,7 +53,7 @@ int timed_benchmark(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events, 
 //!
 //! @return       Array of events.
 //! @return NULL  Failure.
-FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size);
+Event *load_mock_events(uint32_t num_events, uint32_t size);
 
 //! Releases memory allocated for an array of events.
 //!
@@ -57,7 +61,7 @@ FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size);
 //! @param[in] num_events   The number of events in the array.
 //!
 //! @return   Error code or 0 if no error.
-int release_events_memory(FDBKeyValue *events, uint32_t num_events);
+int release_events_memory(Event *events, uint32_t num_events);
 
 //! Parse a positive integer from a string.
 //!
@@ -148,21 +152,27 @@ int main(int argc, char **argv) {
 
   printf("Seguro Phase 2 benchmarks...\n");
 
+  // Initialize FoundationDB database
+  FDBDatabase *fdb = fdb_init();
+
   if (custom_benchmark) {
     printf("Running custom benchmark...\n");
-    return run_custom_benchmark(num_events, event_size, batch_size);
+    return run_custom_benchmark(fdb, num_events, event_size, batch_size);
   } else {
     printf("Running default suite...\n");
-    return run_default_benchmarks();
+    return run_default_benchmarks(fdb);
   }
 
-  printf("Benchmarks completed.\n");
+  // Clean up FoundationDB database
+  printf("Tearing down database...\n");
+  fdb_shutdown(fdb, &fdb_network_thread);
 
   // Success
+  printf("Benchmarks completed.\n");
   return 0;
 }
 
-int run_default_benchmarks(void) {
+int run_default_benchmarks(FDBDatabase *fdb) {
 
   // Default benchmark suite event settings
 
@@ -180,10 +190,7 @@ int run_default_benchmarks(void) {
 
   // Generate mock events
   printf("Generating %u mock events...\n", num_events);
-  FDBKeyValue *events = load_mock_events(num_events, event_size);
-
-  // Initialize FoundationDB database
-  FDBDatabase *fdb = fdb_init();
+  Event *events = load_mock_events(num_events, event_size);
 
   // Run the write benchmarks
   timed_benchmark(fdb, events, num_events, 1);
@@ -202,14 +209,11 @@ int run_default_benchmarks(void) {
   return 0;
 }
 
-int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
+int run_custom_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
 
   // Generate mock events
   printf("Generating %u mock events...\n", num_events);
-  FDBKeyValue *events = load_mock_events(num_events, event_size);
-
-  // Initialize FoundationDB database
-  FDBDatabase *fdb = fdb_init();
+  Event *events = load_mock_events(num_events, event_size);
 
   // Run the custom write benchmark
   timed_benchmark(fdb, events, num_events, batch_size);
@@ -221,7 +225,7 @@ int run_custom_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batc
   return 0;
 }
 
-int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, uint32_t batch_size) {
+int timed_benchmark(FDBDatabase* fdb, Event* events, uint32_t num_events, uint32_t batch_size) {
 
   // Setup timers
   clock_t t_start, t_end, b_start, b_end, b_diff;
@@ -280,32 +284,29 @@ int timed_benchmark(FDBDatabase* fdb, FDBKeyValue* events, uint32_t num_events, 
   exit(1);
 }
 
-FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size) {
+Event *load_mock_events(uint32_t num_events, uint32_t size) {
 
   // Seed the random number generator
   srand(time(0));
 
   // Allocate memory for events
-  FDBKeyValue *events = (FDBKeyValue *) malloc(sizeof(FDBKeyValue) * num_events);
+  Event *events = (Event *) malloc(sizeof(Event) * num_events);
 
   // Write random key/values into the given array.
-  for (uint32_t i = 0; i < num_events; i++) {
-    // Generate key (unique event ID)
-    int key_length = count_digits(i);
-    uint8_t *key = (uint8_t *) malloc(sizeof(uint8_t) * key_length);
-    sprintf((char *)key, "%d", i);
-
-    // Generate a value (random bytes)
+  for (uint32_t i = 0; i < num_events; ++i) {
+    // Generate a single 10KB fragment (random bytes)
+    Fragment *fragment = (Fragment *) malloc(sizeof(Fragment));
     uint8_t *value = (uint8_t *) malloc(sizeof(uint8_t) * size);
-    for (uint32_t j = 0; j < size; j++) {
+    for (uint32_t j = 0; j < size; ++j) {
       value[j] = rand() % 256;
     }
+    fragment->data_length = size;
+    fragment->data = value;
 
     // Set event properties
-    events[i].key = key;
-    events[i].key_length = key_length;
-    events[i].value = value;
-    events[i].value_length = size;
+    events[i].key = i;
+    events[i].num_fragments = 1;
+    events[i].fragments = fragment;
   }
 
   printf("Loaded %u events into memory.\n\n", num_events);
@@ -313,12 +314,17 @@ FDBKeyValue *load_mock_events(uint32_t num_events, uint32_t size) {
   return events;
 }
 
-int release_events_memory(FDBKeyValue *events, uint32_t num_events) {
+int release_events_memory(Event *events, uint32_t num_events) {
 
-  // Release event key/value pairs
-  for (uint32_t i = 0; i < num_events; i++) {
-    free((void *) events[i].key);
-    free((void *) events[i].value);
+  // Release event memory
+  for (uint32_t i = 0; i < num_events; ++i) {
+    // Release fragment data
+    for (uint32_t j = 0; j < events[i].num_fragments; ++j) {
+      free((void *) events[i].fragments[j].data);
+    }
+
+    // Release fragment array
+    free((void *) events[i].fragments);
   }
 
   // Release events array

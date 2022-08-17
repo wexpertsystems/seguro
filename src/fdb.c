@@ -115,11 +115,11 @@ int fdb_shutdown(FDBDatabase *fdb, pthread_t *t) {
   return 0;
 }
 
-int write_event(FDBDatabase *fdb, FDBKeyValue *event) {
+int write_event(FDBDatabase *fdb, Event *event) {
   return write_event_batch(fdb, event, 1);
 }
 
-int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size) {
+int write_event_batch(FDBDatabase *fdb, Event *events, uint32_t batch_size) {
 
   FDBTransaction *tx;
   fdb_error_t err;
@@ -132,12 +132,8 @@ int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size
   }
 
   // Write the key/value pair for each event as part of the transaction
-  for (uint32_t i = 0; i < batch_size; i++) {
-    fdb_transaction_set(tx,
-                        events[i].key,
-                        events[i].key_length,
-                        events[i].value,
-                        events[i].value_length);
+  for (uint32_t i = 0; i < batch_size; ++i) {
+    event_set_transaction(tx, (events + i));
   }
 
   // Commit event batch transaction
@@ -165,7 +161,7 @@ int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size
   return 0;
 }
 
-int clear_events(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events) {
+int clear_events(FDBDatabase *fdb, Event *events, uint32_t num_events) {
 
   FDBTransaction *tx;
   fdb_error_t err;
@@ -178,8 +174,8 @@ int clear_events(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events) {
   }
 
   // Remove the key for each event
-  for (uint32_t i = 0; i < num_events; i++) {
-    fdb_transaction_clear(tx, events[i].key, events[i].key_length);
+  for (uint32_t i = 0; i < num_events; ++i) {
+    event_clear_transaction(tx, (events + i));
   }
 
   // Commit batched clear transaction

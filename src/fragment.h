@@ -1,6 +1,6 @@
 //! @file events.h
 //!
-//! Events.
+//! Fragment struct definition and utilities.
 
 #pragma once
 
@@ -8,12 +8,10 @@
 
 
 //==============================================================================
-// Prototypes
+// Types
 //==============================================================================
 
-//! Counts the number of digits in an integer.
-//!
-//! @param[in] n  The integer.
-//!
-//! @return  The number of digits.
-int count_digits(uint32_t n);
+typedef struct fragment_t {
+  uint16_t  data_length;
+  uint8_t  *data;
+} Fragment;

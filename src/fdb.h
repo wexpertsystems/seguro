@@ -8,6 +8,8 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include "event.h"
+
 
 //==============================================================================
 // Variables
@@ -44,7 +46,7 @@ int fdb_shutdown(FDBDatabase *fdb, pthread_t *t);
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int write_event(FDBDatabase *fdb, FDBKeyValue *event);
+int write_event(FDBDatabase *fdb, Event *event);
 
 //! Write a several events to FoundationDB in a single transaction.
 //!
@@ -54,7 +56,7 @@ int write_event(FDBDatabase *fdb, FDBKeyValue *event);
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size);
+int write_event_batch(FDBDatabase *fdb, Event *events, uint32_t batch_size);
 
 //! Remove given events from FoundationDB.
 //!
@@ -64,4 +66,4 @@ int write_event_batch(FDBDatabase *fdb, FDBKeyValue *events, uint32_t batch_size
 //!
 //! @return  0  Success.
 //! @return -1  Failure.
-int clear_events(FDBDatabase *fdb, FDBKeyValue *events, uint32_t num_events);
+int clear_events(FDBDatabase *fdb, Event *events, uint32_t num_events);
