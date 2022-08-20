@@ -5,16 +5,14 @@
 //////////////////////////////////////////////////////////////////////////////
 
 - Write events
-    - Write simple events
-        - Unit tests
-            - Write simple event
+    - Write simple events                                                   X
         - Local benchmarks                                                  X
             - Additional timers (min/avg/max/total)                         X
             - Write one at a time                                           X
             - Batch 10 events                                               X
             - Batch 100 events                                              X
             - Batch 1000 events                                             X
-    - Write fragmented events
+    - Write fragmented events                                               X
         - Unit tests
             - Compute number of fragments correctly for an event
             - Fragment event correctly (i.e. grocery stick in right place?)
@@ -59,6 +57,12 @@
                 - Batch 1000 events
     - Unit tests
         - Write mix of simple and fragmented events
+- Benchmark write efficiency for various event fragment sizes
+  - 5 KB
+  - 10 KB
+  - 25 KB
+  - 50 KB
+  - 100 KB
 - Reading events
     - Read simple events
         - Unit tests
@@ -76,3 +80,6 @@
                 - 200 fragment events
                 - 1000 fragment events
 - Test with real data from LMDB
+- Test with remote FoundationDB database
+- Test save-delete-load-launch with real pier
+- Add FDB Tenant support

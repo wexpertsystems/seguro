@@ -13,7 +13,7 @@
 
 #include "../event.h"
 #include "../fdb.h"
-#include "../fragment.h"
+
 
 //==============================================================================
 // Prototypes
@@ -44,7 +44,7 @@ int run_custom_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_s
 //! @param[in] batch_size   The number of events to write per FDB transaction.
 //!
 //! @return   Error code or 0 if no error.
-int timed_benchmark(FDBDatabase *fdb, Event *events, uint32_t num_events, uint32_t batch_size);
+int timed_benchmark(FDBDatabase *fdb, FragmentedEvent *events, uint32_t num_events);
 
 //! Generate an array of mock events.
 //!
@@ -53,7 +53,7 @@ int timed_benchmark(FDBDatabase *fdb, Event *events, uint32_t num_events, uint32
 //!
 //! @return       Array of events.
 //! @return NULL  Failure.
-Event *load_mock_events(uint32_t num_events, uint32_t size);
+Event *load_mock_events(uint32_t num_events, uint64_t size);
 
 //! Releases memory allocated for an array of events.
 //!
@@ -61,7 +61,7 @@ Event *load_mock_events(uint32_t num_events, uint32_t size);
 //! @param[in] num_events   The number of events in the array.
 //!
 //! @return   Error code or 0 if no error.
-int release_events_memory(Event *events, uint32_t num_events);
+int release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events);
 
 //! Parse a positive integer from a string.
 //!
@@ -174,8 +174,6 @@ int main(int argc, char **argv) {
 
 int run_default_benchmarks(FDBDatabase *fdb) {
 
-  // Default benchmark suite event settings
-
   // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
   // write, keys + ranges for read).
   //
@@ -190,20 +188,27 @@ int run_default_benchmarks(FDBDatabase *fdb) {
 
   // Generate mock events
   printf("Generating %u mock events...\n", num_events);
-  Event *events = load_mock_events(num_events, event_size);
+  Event *raw_events = load_mock_events(num_events, event_size);
+
+  // Fragment events
+  FragmentedEvent events[num_events];
+  for (uint32_t i = 0; i < num_events; ++i) {
+    fragment_event((raw_events + i), (events + i));
+  }
 
   // Run the write benchmarks
-  timed_benchmark(fdb, events, num_events, 1);
-  timed_benchmark(fdb, events, num_events, 10);
-  timed_benchmark(fdb, events, num_events, 100);
-  timed_benchmark(fdb, events, num_events, 200);
-  timed_benchmark(fdb, events, num_events, 300);
-  timed_benchmark(fdb, events, num_events, 450);
-  timed_benchmark(fdb, events, num_events, 600);
-  timed_benchmark(fdb, events, num_events, 900);
+  timed_benchmark(fdb, events, num_events);
+//  timed_benchmark(fdb, events, num_events, 1);
+//  timed_benchmark(fdb, events, num_events, 10);
+//  timed_benchmark(fdb, events, num_events, 100);
+//  timed_benchmark(fdb, events, num_events, 200);
+//  timed_benchmark(fdb, events, num_events, 300);
+//  timed_benchmark(fdb, events, num_events, 450);
+//  timed_benchmark(fdb, events, num_events, 600);
+//  timed_benchmark(fdb, events, num_events, 900);
 
   // Clean up heap
-  release_events_memory(events, num_events);
+  release_events_memory(raw_events, events, num_events);
 
   // Success
   return 0;
@@ -213,41 +218,49 @@ int run_custom_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_s
 
   // Generate mock events
   printf("Generating %u mock events...\n", num_events);
-  Event *events = load_mock_events(num_events, event_size);
+  Event *raw_events = load_mock_events(num_events, event_size);
+
+  // Fragment events
+  FragmentedEvent events[num_events];
+  for (uint32_t i = 0; i < num_events; ++i) {
+    fragment_event((raw_events + i), (events + i));
+  }
 
   // Run the custom write benchmark
-  timed_benchmark(fdb, events, num_events, batch_size);
+  fdb_set_batch_size(batch_size);
+  timed_benchmark(fdb, events, num_events);
 
   // Clean up heap
-  release_events_memory(events, num_events);
+  release_events_memory(raw_events, events, num_events);
 
   // Success
   return 0;
 }
 
-int timed_benchmark(FDBDatabase* fdb, Event* events, uint32_t num_events, uint32_t batch_size) {
+int timed_benchmark(FDBDatabase* fdb, FragmentedEvent* events, uint32_t num_events) {
+
+  //
+  int err;
 
   // Setup timers
   clock_t t_start, t_end, b_start, b_end, b_diff;
   clock_t b_max = 0;
   clock_t b_min = (clock_t)INT_MAX;
   double total_time;
-  int err;
 
-  printf("Writing %u events in batches of %u...\n", num_events, batch_size);
+  printf("Writing %u events in batches of %u...\n", num_events, 1);
 
   // Start timer
   t_start = clock();
 
-  // Perform batched writes
-  for(uint32_t i = 0; i < num_events; i += batch_size) {
-    // Time each batch write
+  for(uint32_t i = 0; i < num_events; ++i) {
+    // Time each write
     b_start = clock();
 
-    err = write_event_batch(fdb, (events + i), batch_size);
+    err = fdb_write_event(fdb, (events + i));
     if (err != 0) goto fatal_error;
 
-    // Record batch time if new min or new max set
+    // Record time if new min or new max set
     b_end = clock();
     b_diff = b_end - b_start;
     if (b_diff > b_max) {
@@ -265,14 +278,14 @@ int timed_benchmark(FDBDatabase* fdb, Event* events, uint32_t num_events, uint32
 
   printf("Total time to write events: %.2f s\n", total_time);
   printf("Average time per event:     %.4f ms\n", (1000.0 * total_time / num_events));
-  printf("Max batch time:             %.4f ms\n", (1000.0 * b_max / CLOCKS_PER_SEC));
-  printf("Avg batch time:             %.4f ms\n", (1000.0 * total_time / (num_events / batch_size)));
-  printf("Min batch time:             %.4f ms\n", (1000.0 * b_min / CLOCKS_PER_SEC));
+  printf("Max time:                   %.4f ms\n", (1000.0 * b_max / CLOCKS_PER_SEC));
+//  printf("Avg time:                   %.4f ms\n", (1000.0 * total_time / (num_events / batch_size)));
+  printf("Min time:                   %.4f ms\n", (1000.0 * b_min / CLOCKS_PER_SEC));
 
   // Clean up database
   printf("Cleaning events from database...\n\n");
 
-  err = clear_events(fdb, events, num_events);
+  err = fdb_clear_event_array(fdb, events, num_events);
   if (err != 0) goto fatal_error;
 
   // Success
@@ -284,7 +297,7 @@ int timed_benchmark(FDBDatabase* fdb, Event* events, uint32_t num_events, uint32
   exit(1);
 }
 
-Event *load_mock_events(uint32_t num_events, uint32_t size) {
+Event *load_mock_events(uint32_t num_events, uint64_t size) {
 
   // Seed the random number generator
   srand(time(0));
@@ -294,37 +307,33 @@ Event *load_mock_events(uint32_t num_events, uint32_t size) {
 
   // Write random key/values into the given array.
   for (uint32_t i = 0; i < num_events; ++i) {
-    // Generate a single 10KB fragment (random bytes)
-    Fragment *fragment = (Fragment *) malloc(sizeof(Fragment));
-    uint8_t *value = (uint8_t *) malloc(sizeof(uint8_t) * size);
-    for (uint32_t j = 0; j < size; ++j) {
-      value[j] = rand() % 256;
+    // Generate random byte data
+    uint8_t *data = (uint8_t *) malloc(sizeof(uint8_t) * size);
+    for (uint64_t j = 0; j < size; ++j) {
+      data[j] = rand() % 256;
     }
-    fragment->data_length = size;
-    fragment->data = value;
 
-    // Set event properties
+    // Generate Event from data
     events[i].key = i;
-    events[i].num_fragments = 1;
-    events[i].fragments = fragment;
+    events[i].data_length = size;
+    events[i].data = data;
   }
 
+  // Success
   printf("Loaded %u events into memory.\n\n", num_events);
-
   return events;
 }
 
-int release_events_memory(Event *events, uint32_t num_events) {
+int release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events) {
 
-  // Release event memory
+  // Release fragment pointers
   for (uint32_t i = 0; i < num_events; ++i) {
-    // Release fragment data
-    for (uint32_t j = 0; j < events[i].num_fragments; ++j) {
-      free((void *) events[i].fragments[j].data);
-    }
+    free_fragmented_event(f_events + i);
+  }
 
-    // Release fragment array
-    free((void *) events[i].fragments);
+  // Release event data
+  for (uint32_t i = 0; i < num_events; ++i) {
+    free_event(events + i);
   }
 
   // Release events array

@@ -7,7 +7,9 @@
 #include <foundationdb/fdb_c.h>
 #include <stdint.h>
 
-#include "fragment.h"
+#define EXTENDED_HEADER 0x80
+#define MAX_HEADER_SIZE 4
+#define MAX_NUM_FRAGMENTS 16777216
 
 
 //==============================================================================
@@ -15,23 +17,28 @@
 //==============================================================================
 
 typedef struct event_t {
-  // TODO: uint64_t for key?
-  uint32_t  key;
-  uint32_t  num_fragments;
-  Fragment *fragments;
+  uint64_t  key;
+  uint64_t  data_length;
+  uint8_t  *data;
 } Event;
+
+typedef struct fragmented_event_t {
+  uint64_t   key;
+  uint32_t   num_fragments;
+  uint8_t    header[MAX_HEADER_SIZE];
+  uint8_t    header_length;
+  uint16_t   payload_length;
+  uint8_t  **fragments;
+} FragmentedEvent;
 
 //==============================================================================
 // Prototypes
 //==============================================================================
 
-void event_set_transaction(FDBTransaction *tx, Event *event);
+void fragment_event(Event *event, FragmentedEvent *f_event);
 
-void event_clear_transaction(FDBTransaction *tx, Event *event);
+uint8_t build_fragment_header(uint8_t *header, uint32_t num_fragments);
 
-//! Computes the length of the FoundationDB key for an event.
-//!
-//! @param[in] n  The event.
-//!
-//! @return  The length of the key.
-int get_key_length(Event *event);
+void free_event(Event *event);
+
+void free_fragmented_event(FragmentedEvent *event);

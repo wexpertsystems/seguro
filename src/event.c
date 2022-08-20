@@ -2,40 +2,91 @@
 //!
 //! Generates or reads events from LMDB, and loads them into memory.
 
-#include <foundationdb/fdb_c.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "constants.h"
 #include "event.h"
-#include "fragment.h"
 
 
 //==============================================================================
 // Functions
 //==============================================================================
 
-void event_set_transaction(FDBTransaction *tx, Event *event) {
+void fragment_event(Event *event, FragmentedEvent *f_event) {
 
-  int key_length = get_key_length(event);
-  uint8_t key[key_length];
-  sprintf((char *)key, "%d", event->key);
+  uint32_t num_fragments;
+  uint16_t payload_length;
+  uint8_t  header_length;
 
-  fdb_transaction_set(tx,
-                      key,
-                      key_length,
-                      event->fragments[0].data,
-                      event->fragments[0].data_length);
+  // Split event into as many optimally sized fragments as possible, and always put the oddly-sized portion at the
+  // front. Thus, every fragment after the first one will be exactly OPTIMAL_VALUE_SIZE bytes long, whereas the payload
+  // of the first fragment may be as small as 1 byte or as large as (OPTIMAL_VALUE_SIZE + MAX_HEADER_SIZE) bytes.
+  num_fragments  = (event->data_length / OPTIMAL_VALUE_SIZE);
+  payload_length = (event->data_length % OPTIMAL_VALUE_SIZE);
+
+  // Probably possible to tune the tolerances here (e.g. "if # leftover bytes < 1000, append to payload")
+  if (!payload_length) {
+    payload_length = OPTIMAL_VALUE_SIZE;
+  } else {
+    ++num_fragments;
+  }
+
+  uint8_t **fragments = (uint8_t **) malloc(sizeof(uint8_t *) * num_fragments);
+  fragments[0] = event->data;
+  for (uint32_t i = 1; i < num_fragments; ++i) {
+    fragments[i] = (event->data + payload_length + ((i - 1) * OPTIMAL_VALUE_SIZE));
+  }
+
+  // Need the number of ADDITIONAL fragments for header
+  header_length = build_fragment_header(f_event->header, num_fragments - 1);
+
+  f_event->key = event->key;
+  f_event->num_fragments = num_fragments;
+  f_event->header_length = header_length;
+  f_event->payload_length = payload_length;
+  f_event->fragments = fragments;
 }
 
-void event_clear_transaction(FDBTransaction *tx, Event *event) {
+uint8_t build_fragment_header(uint8_t *header, uint32_t num_fragments) {
+  //
+  // HEADER   MAX # FRAGS   MAX EVENT SIZE
+  // 1 byte   128                1280000 bytes (  1.28 MB)
+  // 2 byte   256                2560000 bytes (  2.56 MB)
+  // 3 byte   65536            655360000 bytes (655.36 MB)
+  // 4 byte   16777216      167772160000 bytes (~168 GB)
+  // ...
+  //
+  // Thus, the header size is determined by the number of fragments necessary to store the event (which is indirectly
+  // tied to the OPTIMAL_VALUE_SIZE macro [10,000 bytes for FDB]). We can also set an upper limit using the
+  // MAX_HEADER_SIZE macro for event sizes we expect to never be reached (e.g. maximum header size of 4 if we never
+  // expect to see an event larger than ~168GB).
+  //
+  if (num_fragments < 128) {
+    header[0] = ((uint8_t *) &num_fragments)[0];
+    return 1;
+  }
 
-  int key_length = get_key_length(event);
-  uint8_t key[key_length];
-  sprintf((char *)key, "%d", event->key);
+  for (uint8_t i = 1; i < (MAX_HEADER_SIZE - 1); ++i) {
+    if (num_fragments < ((uint32_t)(1 << (i * 8)))) {
+      header[0] = (EXTENDED_HEADER & i);
+      memcpy((header + 1), &num_fragments, i);
+      return (i + 1);
+    }
+  }
 
-  fdb_transaction_clear(tx, key, key_length);
+  // Technically this is wrong if num_fragments >= 2^24
+  header[0] = (EXTENDED_HEADER & (MAX_HEADER_SIZE - 1));
+  memcpy((header + 1), &num_fragments, (MAX_HEADER_SIZE - 1));
+  return MAX_HEADER_SIZE;
 }
 
-int get_key_length(Event *event) {
-  return snprintf(NULL, 0, "%d", event->key);
+void free_event(Event *event) {
+  free((void *) event->data);
+}
+
+void free_fragmented_event(FragmentedEvent *event) {
+  free((void *) event->fragments);
 }
