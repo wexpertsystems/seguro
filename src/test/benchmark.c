@@ -1,6 +1,6 @@
 //! @file benchmark.c
 //!
-//! Benchmark suite for Seguro.
+//! Benchmarking suite for Seguro Phase 2.
 
 #include <foundationdb/fdb_c.h>
 #include <getopt.h>
@@ -41,7 +41,6 @@ int run_custom_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_s
 //! @param[in] fdb          FoundationDB handle.
 //! @param[in] events       Array of events to write to FDB.
 //! @param[in] num_events   The number of events in the array.
-//! @param[in] batch_size   The number of events to write per FDB transaction.
 //!
 //! @return   Error code or 0 if no error.
 int timed_benchmark(FDBDatabase *fdb, FragmentedEvent *events, uint32_t num_events);
@@ -55,10 +54,11 @@ int timed_benchmark(FDBDatabase *fdb, FragmentedEvent *events, uint32_t num_even
 //! @return NULL  Failure.
 Event *load_mock_events(uint32_t num_events, uint64_t size);
 
-//! Releases memory allocated for an array of events.
+//! Releases memory allocated for mock events.
 //!
-//! @param[in] events       Array of events to free.
-//! @param[in] num_events   The number of events in the array.
+//! @param[in] events       Array of raw events to free.
+//! @param[in] events       Array of fragmented events to free.
+//! @param[in] num_events   The number of events in the arrays.
 //!
 //! @return   Error code or 0 if no error.
 int release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events);

@@ -4,59 +4,36 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-- Write events
-    - Write simple events                                                   X
-        - Local benchmarks                                                  X
-            - Additional timers (min/avg/max/total)                         X
-            - Write one at a time                                           X
-            - Batch 10 events                                               X
-            - Batch 100 events                                              X
-            - Batch 1000 events                                             X
-    - Write fragmented events                                               X
-        - Unit tests
-            - Compute number of fragments correctly for an event
-            - Fragment event correctly (i.e. grocery stick in right place?)
-            - Form headers correctly
-            - Convert data to simple of fragmented event as appropriate
-            - Write fragmented event
-        - Local benchmarks
-            - 2 fragment event
-                - Write one fragment at a time
-                - Batch 1 event
-                - Batch 10 events
-                - Batch 100 events
-                - Batch 1000 events
-            - 10 fragment event
-                - Write one fragment at a time
-                - Batch 1 event
-                - Batch 10 events
-                - Batch 100 events
-                - Batch 1000 events
-            - 100 fragment event
-                - Write one fragment at a time
-                - Batch 10 fragments
-                - Batch 1 event
-                - Batch 10 events
-                - Batch 100 events
-                - Batch 1000 events
-            - 200 fragment event
-                - Write one fragment at a time
-                - Batch 10 fragments
-                - Batch 100 fragments
-                - Batch 1 event
-                - Batch 10 events
-                - Batch 100 events
-                - Batch 1000 events
-            - 1000 fragment event
-                - Write one fragment at a time
-                - Batch 10 fragments
-                - Batch 100 fragments
-                - Batch 1 event
-                - Batch 10 events
-                - Batch 100 events
-                - Batch 1000 events
+- Write fragmented events
     - Unit tests
-        - Write mix of simple and fragmented events
+        - fragment_event
+            - Split into correct number of fragments
+            - Split fragments at right place
+            - Correct size of leftover fragment
+        - build_fragment_header
+    - Local benchmarks
+        - 1 fragment event
+            - Batch 1 event
+            - Batch 10 events
+            - Batch 100 events
+            - Batch 250 events
+            - Batch 500 events
+        - 2 fragment event
+            - Batch 1 event
+            - Batch 10 events
+            - Batch 100 events
+            - Batch 250 events
+        - 10 fragment event
+            - Batch 1 event
+            - Batch 10 events
+            - Batch 25 events
+            - Batch 50 events
+        - 100 fragment event
+            - Batch 1 event
+            - Batch 5 events
+        - 500 fragment event
+            - Batch 1 event
+- Asynchronous writes & timers
 - Benchmark write efficiency for various event fragment sizes
   - 5 KB
   - 10 KB
@@ -64,21 +41,13 @@
   - 50 KB
   - 100 KB
 - Reading events
-    - Read simple events
-        - Unit tests
-            - Roundtrip event
-        - Benchmarks
-            - Roundtrip events
-    - Read fragmented events
-        - Unit tests
-            - Roundtrip event
-        - Benchmarks
-            - Roundtrip events
-                - 2 fragment events
-                - 10 fragment events
-                - 100 fragment events
-                - 200 fragment events
-                - 1000 fragment events
+    - Unit tests
+    - Benchmarks
+- Additional unit tests
+    - Round trip of events
+        - Batch write
+        - Event write
+        - Array write
 - Test with real data from LMDB
 - Test with remote FoundationDB database
 - Test save-delete-load-launch with real pier

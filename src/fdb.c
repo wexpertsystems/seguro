@@ -1,6 +1,6 @@
 //! @file fdb.c
 //!
-//! Reads and writes events into and out of a FoundationDB cluster.
+//! Definitions for functions used to manage interaction with a FoundationDB cluster.
 
 #include <foundationdb/fdb_c.h>
 #include <pthread.h>
@@ -31,8 +31,20 @@ uint32_t  fdb_batch_size = 1;
 // Prototypes
 //==============================================================================
 
+//! Add a limited number of write operations for the fragments of an event to a FoundationDB transaction.
+//!
+//! @param[in] tx         FoundationDB transaction handle
+//! @param[in] event      Fragmented event handle
+//! @param[in] start_pos  Starting position in fragments array of event from which to begin writing
+//! @param[in] limit      Absolute limit on the number of fragments to write in the transaction
+//!
+//! @return   Number of event fragments added to transaction
 uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, uint32_t start_pos, uint32_t limit);
 
+//! Add a clear operation for all fragments of an event to a FoundationDB transaction.
+//!
+//! @param[in] tx         FoundationDB transaction handle
+//! @param[in] event      Fragmented event handle
 void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event);
 
 //==============================================================================
@@ -141,7 +153,7 @@ int fdb_shutdown(FDBDatabase *fdb, pthread_t *t) {
 
 int fdb_setup_transaction(FDBDatabase *fdb, FDBTransaction **tx) {
 
-  // Create a new database "transaction" (actually a snapshot of diffs to apply as a single transaction)
+  // Create a new database transaction (actually a snapshot of prospective diffs to apply as a single transaction)
   fdb_error_t err = fdb_database_create_transaction(fdb, tx);
 
   // Failure
@@ -189,18 +201,25 @@ int fdb_send_transaction(FDBDatabase *fdb, FDBTransaction *tx) {
 int fdb_write_batch(FDBDatabase *fdb, FragmentedEvent *event, uint32_t *pos) {
 
   FDBTransaction *tx;
+  uint32_t        num_out;
   int             err;
 
+  // Initialize transaction
   err = fdb_setup_transaction(fdb, &tx);
   if (err) return err;
 
-  *pos += add_event_set_transactions(tx, event, *pos, fdb_batch_size);
+  // Add write events to transaction
+  num_out = add_event_set_transactions(tx, event, *pos, fdb_batch_size);
 
+  // Attempt to apply the transaction
   err = fdb_send_transaction(fdb, tx);
   if (err) return err;
 
+  // Clean up the transaction
   fdb_transaction_destroy(tx);
+  *pos += num_out;
 
+  // Success
   return 0;
 }
 
@@ -210,9 +229,11 @@ int fdb_write_event(FDBDatabase *fdb, FragmentedEvent *event) {
   uint32_t        i = 0;
   int             err;
 
+  // Initialize transaction
   err = fdb_setup_transaction(fdb, &tx);
   if (err) return err;
 
+  // Write event fragments in maximal batches
   while (i < event->num_fragments) {
     i += add_event_set_transactions(tx, event, i, fdb_batch_size);
 
@@ -220,8 +241,10 @@ int fdb_write_event(FDBDatabase *fdb, FragmentedEvent *event) {
     if (err) return err;
   }
 
+  // Clean up the transaction
   fdb_transaction_destroy(tx);
 
+  // Success
   return 0;
 }
 
@@ -233,11 +256,15 @@ int fdb_write_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
   uint32_t        i = 0;
   int             err;
 
+  // Initialize transaction
   err = fdb_setup_transaction(fdb, &tx);
   if (err) return err;
 
+  // For each event
   while (i < num_events) {
 
+    // Add as many unwritten fragments from the current event as possible (method differs slightly depending on whether
+    // there are already other fragments in the batch)
     if (!batch_filled) {
       batch_filled = add_event_set_transactions(tx, (events + i), frag_pos, fdb_batch_size);
       frag_pos += batch_filled;
@@ -247,11 +274,13 @@ int fdb_write_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
       frag_pos += num_kvp;
     }
 
+    // Increment event counter when all fragments from an event have been written
     if (frag_pos == events[i].num_fragments) {
       i += 1;
       frag_pos = 0;
     }
 
+    // Attempt to apply transaction when batch is filled
     if (batch_filled == fdb_batch_size) {
       err = fdb_send_transaction(fdb, tx);
       if (err) return err;
@@ -260,9 +289,11 @@ int fdb_write_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
     }
   }
 
+  // Catch the final, non-full batch
   fdb_send_transaction(fdb, tx);
   if (err) return err;
 
+  // Clean up the transaction
   fdb_transaction_destroy(tx);
 
   // Success
@@ -274,14 +305,18 @@ int fdb_clear_event(FDBDatabase *fdb, FragmentedEvent *event) {
   FDBTransaction *tx;
   int             err;
 
+  // Initialize transaction
   err = fdb_setup_transaction(fdb, &tx);
   if (err) return err;
 
+  // Add a clear operation for the event
   add_event_clear_transaction(tx, event);
 
+  // Attempt to apply the transaction
   fdb_send_transaction(fdb, tx);
   if (err) return err;
 
+  // Clean up the transaction
   fdb_transaction_destroy(tx);
 
   // Success
@@ -293,10 +328,11 @@ int fdb_clear_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
   FDBTransaction *tx;
   int             err;
 
+  // Initialize transaction
   err = fdb_setup_transaction(fdb, &tx);
   if (err) return err;
 
-
+  // Add a clear operation for the each event, attempt to apply full batches
   for (uint32_t i = 0; i < num_events; ++i) {
 
     add_event_clear_transaction(tx, (events + i));
@@ -307,36 +343,38 @@ int fdb_clear_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
     }
   }
 
+  // Catch the final, non-full batch
   err = fdb_send_transaction(fdb, tx);
   if (err) return err;
 
+  // Clean up the transaction
   fdb_transaction_destroy(tx);
 
+  // Success
   return 0;
 }
 
 uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, uint32_t start_pos, uint32_t limit) {
 
+  // Determine the number of fragments that are going to be written
   uint32_t max_pos = (start_pos + limit);
   uint32_t end_pos = (max_pos < event->num_fragments) ? max_pos : event->num_fragments;
   uint32_t num_kvp = end_pos - start_pos;
-  uint8_t  key[KEY_TOTAL_LENGTH] = { 0 };
 
-  // FoundationDB has a rule that any keys beginning with 0xff access a special key-space, so we need to add a null byte
+  // FoundationDB has a rule that keys beginning with 0xff access a special key-space, so need to prepend a null byte
+  uint8_t  key[KEY_TOTAL_LENGTH] = { 0 };
   memcpy((key + 1), &(event->key), KEY_EVENT_LENGTH);
 
+  // Special rules for first fragment
   if (!start_pos) {
-    // Setup event with header and payload
+    // First fragment contains header and has an irregularly sized payload
     uint32_t value_length = event->header_length + event->payload_length;
     uint8_t  value[value_length];
 
     memcpy(value, event->header, event->header_length);
     memcpy((value + event->header_length), event->fragments[0], event->payload_length);
 
-// HERE
-// printf("%x %x %x %x %x %x %x %x %x %x %x %x\n", key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7], key[8], key[9], key[10], key[11]);
-
-    // Add write transaction
+    // Key is already implicitly correct, since first fragment has fragment ID 0
     fdb_transaction_set(tx,
                         key,
                         KEY_TOTAL_LENGTH,
@@ -347,10 +385,10 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
   }
 
   for (uint32_t i = start_pos; i < end_pos; ++i) {
-    // Setup event fragment key
+    // Setup key for event fragment
     memcpy((key + KEY_EVENT_LENGTH + 1), &i, KEY_FRAGMENT_LENGTH);
 
-    // Add write transaction
+    // Add write operation to transaction
     fdb_transaction_set(tx,
                         key,
                         KEY_TOTAL_LENGTH,
@@ -364,16 +402,16 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
 void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
 
   uint8_t  range_start_key[KEY_TOTAL_LENGTH] = { 0 };
-  uint8_t  range_end_key[KEY_TOTAL_LENGTH];
+  uint8_t  range_end_key[KEY_TOTAL_LENGTH] = { 0 };
 
-  //
+  // Setup start key for range
   memcpy((range_start_key + 1), &event->key, KEY_EVENT_LENGTH);
 
-  //
+  // Setup end key for range
   memcpy((range_end_key + 1), &event->key, KEY_EVENT_LENGTH);
   memcpy((range_end_key + KEY_EVENT_LENGTH + 1), &event->num_fragments, KEY_FRAGMENT_LENGTH);
 
-  //
+  // Add clear operation to transaction
   fdb_transaction_clear_range(tx,
                               range_start_key,
                               KEY_TOTAL_LENGTH,

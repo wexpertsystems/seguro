@@ -1,6 +1,6 @@
 //! @file events.c
 //!
-//! Generates or reads events from LMDB, and loads them into memory.
+//! Definitions for functions which manage events.
 
 #include <stdint.h>
 #include <stdio.h>
@@ -21,28 +21,30 @@ void fragment_event(Event *event, FragmentedEvent *f_event) {
   uint16_t payload_length;
   uint8_t  header_length;
 
-  // Split event into as many optimally sized fragments as possible, and always put the oddly-sized portion at the
+  // Split event into as many optimally sized fragments as possible, and always put the oddly-sized fragment at the
   // front. Thus, every fragment after the first one will be exactly OPTIMAL_VALUE_SIZE bytes long, whereas the payload
-  // of the first fragment may be as small as 1 byte or as large as (OPTIMAL_VALUE_SIZE + MAX_HEADER_SIZE) bytes.
+  // of the first fragment may be as small as 1 byte or as large as OPTIMAL_VALUE_SIZE bytes.
   num_fragments  = (event->data_length / OPTIMAL_VALUE_SIZE);
   payload_length = (event->data_length % OPTIMAL_VALUE_SIZE);
 
-  // Probably possible to tune the tolerances here (e.g. "if # leftover bytes < 1000, append to payload")
+  // Tuning opportunities here (e.g. if X < 1000, payload of 1st fragment = (OPTIMAL_VALUE_SIZE + X))
   if (!payload_length) {
     payload_length = OPTIMAL_VALUE_SIZE;
   } else {
     ++num_fragments;
   }
 
+  // Each fragment data array is just a pointer to an index in the existing raw event data array
   uint8_t **fragments = (uint8_t **) malloc(sizeof(uint8_t *) * num_fragments);
   fragments[0] = event->data;
   for (uint32_t i = 1; i < num_fragments; ++i) {
     fragments[i] = (event->data + payload_length + ((i - 1) * OPTIMAL_VALUE_SIZE));
   }
 
-  // Need the number of ADDITIONAL fragments for header
-  header_length = build_fragment_header(f_event->header, num_fragments - 1);
+  // Header encodes number of ADDITIONAL fragments
+  header_length = build_header(f_event->header, num_fragments - 1);
 
+  // Setup remaining members of fragmented event
   f_event->key = event->key;
   f_event->num_fragments = num_fragments;
   f_event->header_length = header_length;
@@ -50,7 +52,7 @@ void fragment_event(Event *event, FragmentedEvent *f_event) {
   f_event->fragments = fragments;
 }
 
-uint8_t build_fragment_header(uint8_t *header, uint32_t num_fragments) {
+uint8_t build_header(uint8_t *header, uint32_t num_fragments) {
   //
   // HEADER   MAX # FRAGS   MAX EVENT SIZE
   // 1 byte   128                1280000 bytes (  1.28 MB)
