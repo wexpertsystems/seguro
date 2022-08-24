@@ -5,12 +5,6 @@
 //////////////////////////////////////////////////////////////////////////////
 
 - Write fragmented events
-    - Unit tests
-        - fragment_event
-            - Split into correct number of fragments
-            - Split fragments at right place
-            - Correct size of leftover fragment
-        - build_fragment_header
     - Local benchmarks
         - 1 fragment event
             - Batch 1 event

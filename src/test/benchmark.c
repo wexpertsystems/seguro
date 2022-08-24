@@ -198,14 +198,6 @@ int run_default_benchmarks(FDBDatabase *fdb) {
 
   // Run the write benchmarks
   timed_benchmark(fdb, events, num_events);
-//  timed_benchmark(fdb, events, num_events, 1);
-//  timed_benchmark(fdb, events, num_events, 10);
-//  timed_benchmark(fdb, events, num_events, 100);
-//  timed_benchmark(fdb, events, num_events, 200);
-//  timed_benchmark(fdb, events, num_events, 300);
-//  timed_benchmark(fdb, events, num_events, 450);
-//  timed_benchmark(fdb, events, num_events, 600);
-//  timed_benchmark(fdb, events, num_events, 900);
 
   // Clean up heap
   release_events_memory(raw_events, events, num_events);

@@ -31,6 +31,7 @@ TEST_OBJECTS := $(subst $(TEST_SRC_DIR),$(TEST_OBJ_DIR),$(subst .c,.o,$(TEST_SOU
 TEST_DEPFILES := $(subst $(TEST_SRC_DIR),$(TEST_DEP_DIR),$(subst .c,.d,$(TEST_SOURCES)))
 
 BENCHMARK_CMD := $(addprefix $(BIN_DIR),seguro-benchmark)
+TEST_CMD := $(addprefix $(BIN_DIR),seguro-test)
 
 #==============================================================================
 # RULES
@@ -46,6 +47,19 @@ default : $(BENCHMARK_CMD) help
 #
 help :
 	@egrep "^# target:" makefile
+
+# Run Seguro unit tests
+#
+# target: test - Run Seguro unit tests
+#
+test : $(TEST_CMD)
+	@$(TEST_CMD)
+
+# Link unit tests into an executable binary
+#
+$(TEST_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),test.o)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(addprefix $(TEST_OBJ_DIR),test.o) $(OBJECTS) $(LINK_FLAGS) -o $(TEST_CMD)
 
 # Run Seguro benchmarks
 #
