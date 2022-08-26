@@ -10,7 +10,7 @@ DEV_CFLAGS := -Wall -Wextra -Wpedantic -Wformat=2 -Wno-unused-parameter \
              -Wmissing-include-dirs -Og
 LINK_FLAGS := -lfdb_c -lpthread
 
-FDB_VERSION := 630
+FDB_VERSION := 710
 PARAMS := -DFDB_API_VERSION=$(FDB_VERSION)
 
 BIN_DIR := bin/

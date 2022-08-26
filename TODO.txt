@@ -4,30 +4,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-- Write fragmented events
-    - Local benchmarks
-        - 1 fragment event
-            - Batch 1 event
-            - Batch 10 events
-            - Batch 100 events
-            - Batch 250 events
-            - Batch 500 events
-        - 2 fragment event
-            - Batch 1 event
-            - Batch 10 events
-            - Batch 100 events
-            - Batch 250 events
-        - 10 fragment event
-            - Batch 1 event
-            - Batch 10 events
-            - Batch 25 events
-            - Batch 50 events
-        - 100 fragment event
-            - Batch 1 event
-            - Batch 5 events
-        - 500 fragment event
-            - Batch 1 event
-- Asynchronous writes & timers
+- Move benchmark timers into thread
+- Asynchronous writes
 - Benchmark write efficiency for various event fragment sizes
   - 5 KB
   - 10 KB

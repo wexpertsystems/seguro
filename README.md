@@ -10,8 +10,18 @@ More information:
 
 ## Dependencies:
 
-- [FoundationDB](https://apple.github.io/foundationdb/downloads.html)
+- [FoundationDB](https://github.com/apple/foundationdb/releases)
 - [make](https://www.gnu.org/software/make/)
+
+## Configuration
+
+After installing the clients and server packages of FoundationDB, the default server should be reconfigured for local
+testing. This can be done using the `fdbcli` utility on Linux and MacOS:
+```shell
+fdbcli
+configure single ssd
+```
+This will set the default local FoundationDB cluster to store a single copy of data on disk.
 
 # Usage
 
@@ -38,3 +48,32 @@ make
 
 NOTE: The `-c` option is required to run a custom benchmark; the other options do nothing unless `-c` or `--custom` is
 present.
+
+# Troubleshooting
+
+The state of the local FoundationDB cluster can be monitored using the `fdbcli` utility. It's self-documented, but
+additional information can be found in the [official FoundationDB documentation](https://apple.github.io/foundationdb).
+
+## Soft Reset
+
+If the test or benchmark suites suffer a fatal error, the local FoundationDB may be stranded in an unclean state. It may
+be necessary to manually drop keys from the cluster to ensure tests/benchmarks accurately measure
+correctness/performance:
+```shell
+fdbcli
+writemode on
+clearrange "" \xFF
+```
+The above series of commands will drop all keys from the FoundationDB cluster.
+
+## Hard Reset
+
+If the FoundationDB cluster becomes so broken during development that a hard reset is required, the following commands
+will return the cluster to its initial state after a fresh installation:
+```shell
+sudo systemctl stop foundationdb
+sudo rm -rf /var/lib/foundationdb/data
+sudo systemctl start foundationdb
+fdbcli
+configure new single ssd
+```
