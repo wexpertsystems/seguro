@@ -13,8 +13,10 @@
 
 #include "constants.h"
 #include "fdb.h"
+#include "fdb_timer.h"
 
-#define CLEAR_BATCH_SIZE (40000 * fdb_batch_size)
+// Approximate maximum number of range clears that fit in a FoundationDB transaction
+#define CLEAR_BATCH_SIZE 75000
 #define KEY_TOTAL_LENGTH (1 + KEY_EVENT_LENGTH + KEY_FRAGMENT_LENGTH)
 #define KEY_EVENT_LENGTH 8
 #define KEY_FRAGMENT_LENGTH 4
@@ -24,12 +26,28 @@
 // Variables
 //==============================================================================
 
-pthread_t fdb_network_thread;
-uint32_t  fdb_batch_size = 1;
+FDBDatabase *fdb_database;
+pthread_t    fdb_network_thread;
+uint32_t     fdb_batch_size = 1;
 
 //==============================================================================
 // Prototypes
 //==============================================================================
+
+//! Check if a FoundationDB API command returned an error. If so, print the error description.
+//!
+//! @param[in] err  FoundationDB error code
+//!
+//! @return   The input FoundationDB error code
+fdb_error_t check_error(fdb_error_t err);
+
+//! Check if a FoundationDB API command returned an error. If so, print the error description and exit.
+//!
+//! @param[in] err  FoundationDB error code
+void check_error_bail(fdb_error_t err);
+
+//! Network loop function for handling interactions with a FoundationDB cluster in a separate process.
+void *network_thread_func(void *arg);
 
 //! Add a limited number of write operations for the fragments of an event to a FoundationDB transaction.
 //!
@@ -47,118 +65,91 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
 //! @param[in] event      Fragmented event handle
 void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event);
 
+//! Build the FoundationDB key for an event fragment.
+//!
+//! @param[in] fdb_key    Pointer to the write location for the FoundationDB key
+//! @param[in] key        The unique event identifier
+//! @param[in] fragment   The fragment number
+void build_key(uint8_t *fdb_key, uint64_t key, uint32_t fragment);
+
 //==============================================================================
 // Functions
 //==============================================================================
 
+void fdb_init_database(void) {
+
+  const char *cluster_file_path = "/etc/foundationdb/fdb.cluster";
+
+  // Check cluster file attributes, exit if not found
+  struct stat cluster_file_buffer;
+  uint32_t cluster_file_stat = stat(cluster_file_path, &cluster_file_buffer);
+  if (cluster_file_stat != 0) {
+    printf("ERROR: no fdb.cluster file found at: %s\n", cluster_file_path);
+    exit(1);
+  }
+
+  // Ensure correct FDB API version
+  printf("Ensuring correct API version...\n");
+  check_error_bail(fdb_select_api_version(FDB_API_VERSION));
+
+  // Setup FDB network
+  printf("Setting up network...\n");
+  check_error_bail(fdb_setup_network());
+
+  // Create the database
+  printf("Creating the database...\n");
+  check_error_bail(fdb_create_database((char *) cluster_file_path, &fdb_database));
+}
+
+void fdb_init_network_thread(void) {
+
+  // Start the network thread
+  if (pthread_create(&fdb_network_thread, NULL, network_thread_func, NULL)) {
+    perror("pthread_create() error");
+    fdb_shutdown_database();
+    exit(-1);
+  }
+}
+
+void fdb_shutdown_database(void) {
+
+  // Destroy the database
+  fdb_database_destroy(fdb_database);
+}
+
+int fdb_shutdown_network_thread(void) {
+
+  int err;
+
+  // Signal network shutdown
+  err = check_error(fdb_stop_network());
+  if (err) return err;
+
+  // Stop the network thread
+  if (pthread_join(fdb_network_thread, NULL)) {
+    perror("pthread_join() error");
+    return -1;
+  }
+
+  printf("Successfully shutdown network thread.\n");
+
+  // Success
+  return 0;
+}
+
 int fdb_set_batch_size(uint32_t batch_size) {
+
   if (!batch_size) return -1;
 
   fdb_batch_size = batch_size;
   return 0;
 }
 
-void *fdb_init_run_network(void *arg) {
-
-  printf("Starting network thread...\n\n");
-
-  fdb_error_t err = fdb_run_network();
-  if (err != 0) {
-    printf("fdb_init_run_network: %s\n", fdb_get_error(err));
-    exit(-1);
-  }
-
-  return NULL;
-}
-
-FDBDatabase *fdb_init(void) {
-
-  const char *cluster_file_path = "/etc/foundationdb/fdb.cluster";
-  FDBFuture *fdb_future = NULL;
-  
-  // Check cluster file attributes, exit if not found
-  struct stat cluster_file_buffer;
-  uint32_t cluster_file_stat = stat(cluster_file_path, &cluster_file_buffer);
-  if (cluster_file_stat != 0) {
-    printf("ERROR: no fdb.cluster file found at: %s\n", cluster_file_path);
-    return NULL;
-  }
-  
-  // Ensure correct FDB API version
-  printf("Ensuring correct API version...\n");
-  fdb_error_t err;
-  err = fdb_select_api_version(FDB_API_VERSION);
-  if (err != 0) {
-    printf("fdb_init select api version: %s\n", fdb_get_error(err));
-    goto fdb_init_error;
-  }
-
-  // Setup FDB network
-  printf("Setting up network...\n");
-  err = fdb_setup_network();
-  if (err != 0) {
-    printf("fdb_init failed to setup fdb network: %s\n", fdb_get_error(err));
-    goto fdb_init_error;
-  }
-
-  // Start the network thread
-  pthread_create(&fdb_network_thread, NULL, fdb_init_run_network, NULL);
-
-  // Create the database
-  printf("Creating the database...\n");
-  FDBDatabase *fdb;
-  err = fdb_create_database((char *) cluster_file_path, &fdb);
-  if (err != 0) {
-    printf("fdb_init create database: %s\n", fdb_get_error(err));
-    goto fdb_init_error;
-  }
-
-  // Success
-  return fdb;
-
-  // FDB initialization error goto.
-  fdb_init_error:
-  if (fdb_future) {
-    fdb_future_destroy(fdb_future);
-  }
-
-  // Failure
-  return NULL;
-}
-
-int fdb_shutdown(FDBDatabase *fdb, pthread_t *t) {
-
-  fdb_error_t err;
-
-  // Destroy the database
-  fdb_database_destroy(fdb);
-
-  // Signal network shutdown
-  err = fdb_stop_network();
-  if (err != 0) {
-    printf("fdb_init stop network: %s\n", fdb_get_error(err));
-    return -1;
-  }
-
-  // Stop the network thread
-  err = pthread_join(*t, NULL);
-  if (err) {
-    printf("fdb_init wait for network thread: %d\n", err);
-    return -1;
-  }
-
-  // Success
-  return 0;
-}
-
-int fdb_setup_transaction(FDBDatabase *fdb, FDBTransaction **tx) {
+int fdb_setup_transaction(FDBTransaction **tx) {
 
   // Create a new database transaction (actually a snapshot of prospective diffs to apply as a single transaction)
-  fdb_error_t err = fdb_database_create_transaction(fdb, tx);
-
-  // Failure
-  if (err != 0) {
-    printf("fdb_database_create_transaction error:\n%s", fdb_get_error(err));
+  if (check_error(fdb_database_create_transaction(fdb_database, tx))) {
+    // Failure
     return -1;
   }
 
@@ -166,54 +157,45 @@ int fdb_setup_transaction(FDBDatabase *fdb, FDBTransaction **tx) {
   return 0;
 }
 
-int fdb_send_transaction(FDBDatabase *fdb, FDBTransaction *tx) {
-
-  fdb_error_t err;
+int fdb_send_transaction(FDBTransaction *tx) {
 
   // Commit event batch transaction
   FDBFuture *future = fdb_transaction_commit(tx);
 
   // TODO: Synchornous; need to test asynchronous version
   // Wait for the future to be ready
-  err = fdb_future_block_until_ready(future);
-  if (err != 0) {
-    printf("fdb_future_block_until_ready error:\n%s", fdb_get_error(err));
-    return -1;
-  }
+  if (check_error(fdb_future_block_until_ready(future))) goto tx_fail;
 
   // Check that the future did not return any errors
-  err = fdb_future_get_error(future);
-  if (err != 0) {
-    printf("fdb_future_error:\n%s\n", fdb_get_error(err));
-    return -1;
-  }
+  if (check_error(fdb_future_get_error(future))) goto tx_fail;
 
   // Destroy the future
   fdb_future_destroy(future);
 
-  //
+  // Delete existing transaction object and create a new one
   fdb_transaction_reset(tx);
 
-  // SUCCESS
+  // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-int fdb_write_batch(FDBDatabase *fdb, FragmentedEvent *event, uint32_t *pos) {
+int fdb_write_batch(FragmentedEvent *event, uint32_t *pos) {
 
   FDBTransaction *tx;
   uint32_t        num_out;
-  int             err;
 
   // Initialize transaction
-  err = fdb_setup_transaction(fdb, &tx);
-  if (err) return err;
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
   // Add write events to transaction
   num_out = add_event_set_transactions(tx, event, *pos, fdb_batch_size);
 
   // Attempt to apply the transaction
-  err = fdb_send_transaction(fdb, tx);
-  if (err) return err;
+  if (check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
@@ -221,24 +203,25 @@ int fdb_write_batch(FDBDatabase *fdb, FragmentedEvent *event, uint32_t *pos) {
 
   // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-int fdb_write_event(FDBDatabase *fdb, FragmentedEvent *event) {
+int fdb_write_event(FragmentedEvent *event) {
 
   FDBTransaction *tx;
   uint32_t        i = 0;
-  int             err;
 
   // Initialize transaction
-  err = fdb_setup_transaction(fdb, &tx);
-  if (err) return err;
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
   // Write event fragments in maximal batches
   while (i < event->num_fragments) {
     i += add_event_set_transactions(tx, event, i, fdb_batch_size);
 
-    err = fdb_send_transaction(fdb, tx);
-    if (err) return err;
+    if (check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
   }
 
   // Clean up the transaction
@@ -246,19 +229,21 @@ int fdb_write_event(FDBDatabase *fdb, FragmentedEvent *event) {
 
   // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-int fdb_write_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t num_events) {
+int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events) {
 
   FDBTransaction *tx;
   uint32_t        batch_filled = 0;
   uint32_t        frag_pos = 0;
   uint32_t        i = 0;
-  int             err;
 
   // Initialize transaction
-  err = fdb_setup_transaction(fdb, &tx);
-  if (err) return err;
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
   // For each event
   while (i < num_events) {
@@ -282,55 +267,56 @@ int fdb_write_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
 
     // Attempt to apply transaction when batch is filled
     if (batch_filled == fdb_batch_size) {
-      err = fdb_send_transaction(fdb, tx);
-      if (err) return err;
+      if (check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
 
       batch_filled = 0;
     }
   }
 
   // Catch the final, non-full batch
-  fdb_send_transaction(fdb, tx);
-  if (err) return err;
+  if (check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
 
   // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-int fdb_clear_event(FDBDatabase *fdb, FragmentedEvent *event) {
+int fdb_clear_event(FragmentedEvent *event) {
 
   FDBTransaction *tx;
-  int             err;
 
   // Initialize transaction
-  err = fdb_setup_transaction(fdb, &tx);
-  if (err) return err;
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
   // Add a clear operation for the event
   add_event_clear_transaction(tx, event);
 
   // Attempt to apply the transaction
-  fdb_send_transaction(fdb, tx);
-  if (err) return err;
+  if (check_error(fdb_send_transaction(tx))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
 
   // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-int fdb_clear_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t num_events) {
+int fdb_clear_event_array(FragmentedEvent *events, uint32_t num_events) {
 
   FDBTransaction *tx;
-  int             err;
 
   // Initialize transaction
-  err = fdb_setup_transaction(fdb, &tx);
-  if (err) return err;
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
   // Add a clear operation for the each event, attempt to apply full batches
   for (uint32_t i = 0; i < num_events; ++i) {
@@ -338,20 +324,72 @@ int fdb_clear_event_array(FDBDatabase *fdb, FragmentedEvent *events, uint32_t nu
     add_event_clear_transaction(tx, (events + i));
 
     if (!(i % CLEAR_BATCH_SIZE)) {
-      err = fdb_send_transaction(fdb, tx);
-      if (err) return err;
+      if (check_error(fdb_send_transaction(tx))) goto tx_fail;
     }
   }
 
   // Catch the final, non-full batch
-  err = fdb_send_transaction(fdb, tx);
-  if (err) return err;
+  if (check_error(fdb_send_transaction(tx))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
 
   // Success
   return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
+}
+
+int fdb_clear_database(void) {
+
+  FDBTransaction *tx;
+  uint8_t  start_key[1] = { 0 };
+  uint8_t  end_key[1] = { 0xFF };
+
+  // Initialize transaction
+  if (check_error(fdb_setup_transaction(&tx))) goto tx_fail;
+
+  // Add clear operation to transaction
+  fdb_transaction_clear_range(tx, start_key, 1, end_key, 1);
+
+  // Catch the final, non-full batch
+  if (check_error(fdb_send_transaction(tx))) goto tx_fail;
+
+  // Clean up the transaction
+  fdb_transaction_destroy(tx);
+
+  // Success
+  return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
+}
+
+fdb_error_t check_error(fdb_error_t err) {
+  if (err) {
+    printf("fdb error: (%d) %s\n", err, fdb_get_error(err));
+  }
+
+  return err;
+}
+
+void check_error_bail(fdb_error_t err) {
+  if (err) {
+    printf("fdb error: (%d) %s\n", err, fdb_get_error(err));
+    exit(-1);
+  }
+}
+
+void *network_thread_func(void *arg) {
+
+  printf("Starting network thread...\n");
+
+  if (check_error(fdb_run_network())) return NULL;
+
+  return NULL;
 }
 
 uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, uint32_t start_pos, uint32_t limit) {
@@ -360,10 +398,7 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
   uint32_t max_pos = (start_pos + limit);
   uint32_t end_pos = (max_pos < event->num_fragments) ? max_pos : event->num_fragments;
   uint32_t num_kvp = end_pos - start_pos;
-
-  // FoundationDB has a rule that keys beginning with 0xff access a special key-space, so need to prepend a null byte
   uint8_t  key[KEY_TOTAL_LENGTH] = { 0 };
-  memcpy((key + 1), &(event->key), KEY_EVENT_LENGTH);
 
   // Special rules for first fragment
   if (!start_pos) {
@@ -374,7 +409,8 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
     memcpy(value, event->header, event->header_length);
     memcpy((value + event->header_length), event->fragments[0], event->payload_length);
 
-    // Key is already implicitly correct, since first fragment has fragment ID 0
+    build_key(key, event->key, 0);
+
     fdb_transaction_set(tx,
                         key,
                         KEY_TOTAL_LENGTH,
@@ -386,7 +422,7 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
 
   for (uint32_t i = start_pos; i < end_pos; ++i) {
     // Setup key for event fragment
-    memcpy((key + KEY_EVENT_LENGTH + 1), &i, KEY_FRAGMENT_LENGTH);
+    build_key(key, event->key, i);
 
     // Add write operation to transaction
     fdb_transaction_set(tx,
@@ -405,11 +441,10 @@ void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
   uint8_t  range_end_key[KEY_TOTAL_LENGTH] = { 0 };
 
   // Setup start key for range
-  memcpy((range_start_key + 1), &event->key, KEY_EVENT_LENGTH);
+  build_key(range_start_key, event->key, 0);
 
   // Setup end key for range
-  memcpy((range_end_key + 1), &event->key, KEY_EVENT_LENGTH);
-  memcpy((range_end_key + KEY_EVENT_LENGTH + 1), &event->num_fragments, KEY_FRAGMENT_LENGTH);
+  build_key(range_end_key, event->key, event->num_fragments);
 
   // Add clear operation to transaction
   fdb_transaction_clear_range(tx,
@@ -417,4 +452,10 @@ void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
                               KEY_TOTAL_LENGTH,
                               range_end_key,
                               KEY_TOTAL_LENGTH);
+}
+
+void build_key(uint8_t *fdb_key, uint64_t key, uint32_t fragment) {
+  // FoundationDB has a rule that keys beginning with 0xff access a special key-space, so need to prepend a null byte
+  memcpy((fdb_key + 1), &key, KEY_EVENT_LENGTH);
+  memcpy((fdb_key + KEY_EVENT_LENGTH + 1), &fragment, KEY_FRAGMENT_LENGTH);
 }

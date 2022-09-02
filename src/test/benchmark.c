@@ -1,6 +1,11 @@
 //! @file benchmark.c
 //!
 //! Benchmarking suite for Seguro Phase 2.
+//!
+//! Documentation links:
+//!   https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
+//!   https://linux.die.net/man/3/getopt_long
+//!   https://apple.github.io/foundationdb/benchmarking.html
 
 #include <foundationdb/fdb_c.h>
 #include <getopt.h>
@@ -14,6 +19,7 @@
 #include "../constants.h"
 #include "../event.h"
 #include "../fdb.h"
+#include "../fdb_timer.h"
 
 
 //==============================================================================
@@ -31,35 +37,26 @@ typedef struct data_config_t {
 
 //! Run a custom benchmark test on Seguro.
 //!
-//! @param[in] fdb          FoundationDB handle
 //! @param[in] num_events   The number of events to test writing
 //! @param[in] event_size   The size of each event, in bytes
 //! @param[in] batch_size   The number of events to write per FDB transaction
-//!
-//! @return   Error code or 0 if no error.
-void run_custom_write_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_size, uint32_t batch_size);
+void run_custom_write_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size);
 
 //! Run the default benchmarking suite for Seguro.
-//!
-//! @param[in] fdb  FoundationDB handle
-void run_default_benchmarks(FDBDatabase *fdb);
+void run_default_benchmarks(void);
 
 //! Run the default event write benchmarks.
 //!
-//! @param[in] fdb      FoundationDB handle
-//! @param[in] config   Configuration settings for the benchmark
-void run_default_write_benchmark(FDBDatabase *fdb, DataConfig config);
+//! @param[in] config   Configuration settings for the benchmark test
+void run_default_write_benchmark(DataConfig config);
 
-//! Write an array of events to a FoundationDB cluster and time various parts of the process.
+//! Write an array of events to a FoundationDB cluster and time the process.
 //!
-//! @param[in] fdb          FoundationDB handle
 //! @param[in] events       Array of events to write
 //! @param[in] num_events   Number of events in array
-//! @param[in] batch_size   Batch size of writes per transaction
-void timed_array_write(FDBDatabase* fdb,
-                       FragmentedEvent* events,
-                       uint32_t num_events,
-                       uint32_t batch_size);
+//! @param[in] num_frags    Number of fragments per event
+//! @param[in] batch_size   Batch size of writes per FoundationDB transaction
+void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size);
 
 //! Generate an array of mock events and fragment them.
 //!
@@ -76,15 +73,15 @@ void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_e
 //! @param[in] num_events   Number of events in arrays
 void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events);
 
-//! Print that a fatal error occurred and exit
+//! Print that a fatal error occurred and exit.
 void fatal_error(void);
 
 //! Parse a positive integer from a string.
 //!
 //! @param[in] str  The string to parse.
 //!
-//! @return     A positive integer.
-//! @return 0   Failure.
+//! @return     A positive integer
+//! @return 0   Failure
 uint32_t parse_pos_int(char const *str);
 
 //==============================================================================
@@ -97,8 +94,9 @@ uint32_t parse_pos_int(char const *str);
 //! @param[in] argc  Number of command-line options provided.
 //! @param[in] argv  Array of command-line options provided.
 //!
-//! @return  0  Success.
-//! @return -1  Failure.
+//! @return  0  Success
+//! @return  1  Failure (bad input)
+//! @return -1  Failure (error occurred)
 int main(int argc, char **argv) {
 
   // Variables to parse command line options using getopt
@@ -169,24 +167,26 @@ int main(int argc, char **argv) {
   printf("Seguro Phase 2 benchmarks...\n");
 
   // Initialize FoundationDB database
-  FDBDatabase *fdb = fdb_init();
+  fdb_init_database();
+  fdb_init_timed_thread_keys();
 
   if (custom_benchmark) {
-    run_custom_write_benchmark(fdb, num_events, event_size, batch_size);
+    run_custom_write_benchmark(num_events, event_size, batch_size);
   } else {
-    run_default_benchmarks(fdb);
+    run_default_benchmarks();
   }
 
   // Clean up FoundationDB database
   printf("Tearing down database...\n");
-  fdb_shutdown(fdb, &fdb_network_thread);
+  fdb_shutdown_timed_thread_keys();
+  fdb_shutdown_database();
 
   // Success
   printf("Benchmarks completed.\n");
   return 0;
 }
 
-void run_custom_write_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
+void run_custom_write_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
 
   printf("Running custom benchmark...\n");
 
@@ -200,11 +200,11 @@ void run_custom_write_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t 
 
   // Run the custom write benchmark
   fdb_set_batch_size(batch_size);
-  err = fdb_write_event_array(fdb, events, num_events);
+  err = fdb_write_event_array(events, num_events);
   if (err) fatal_error();
 
   // Clean up the FoundationDB cluster
-  err = fdb_clear_event_array(fdb, events, num_events);
+  err = fdb_clear_event_array(events, num_events);
   if (err) fatal_error();
 
   // Clean up heap
@@ -214,11 +214,11 @@ void run_custom_write_benchmark(FDBDatabase *fdb, uint32_t num_events, uint32_t 
   printf("Custom benchmark complete.\n");
 }
 
-void run_default_benchmarks(FDBDatabase *fdb) {
+void run_default_benchmarks(void) {
 
   printf("Running default benchmarks...\n");
 
-  // Limit amount of data written to local cluster at 10 GB
+  // Limit amount of data written to local cluster at one time to 10 GB
   DataConfig configs[5] = {
     { 1000000, 1 * OPTIMAL_VALUE_SIZE },
     { 100000, 10 * OPTIMAL_VALUE_SIZE },
@@ -228,13 +228,13 @@ void run_default_benchmarks(FDBDatabase *fdb) {
   };
 
   for (uint8_t i = 0; i < 5; ++i) {
-    run_default_write_benchmark(fdb, configs[i]);
+    run_default_write_benchmark(configs[i]);
   }
 
   printf("\nDefault benchmarks complete.\n");
 }
 
-void run_default_write_benchmark(FDBDatabase *fdb, DataConfig config) {
+void run_default_write_benchmark(DataConfig config) {
 
   Event           *raw_events;
   FragmentedEvent *events;
@@ -254,7 +254,7 @@ void run_default_write_benchmark(FDBDatabase *fdb, DataConfig config) {
 
   // Array batch writes for each batch size
   for (uint8_t i = 0; i < 5; ++i) {
-    timed_array_write(fdb, events, num_events, batch_sizes[i]);
+    timed_array_write(events, num_events, num_fragments, batch_sizes[i]);
   }
 
   // Clean up heap
@@ -264,97 +264,48 @@ void run_default_write_benchmark(FDBDatabase *fdb, DataConfig config) {
   printf("Write benchmarks for %d-fragment events complete.\n", num_fragments);
 }
 
-void timed_array_write(FDBDatabase* fdb,
-                                 FragmentedEvent* events,
-                                 uint32_t num_events,
-                                 uint32_t batch_size) {
+void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
 
-  // Data limited to 10 GB, 10 KB per fragment => 1,000,000 fragments
-  // 1,000,000 / 10,000 = 100 => 100 progress bar ticks => each tick is 1%
-  uint32_t progress_bar_fragments = 10000;
-  uint32_t progress_bar_increment = (progress_bar_fragments / events[0].num_fragments);
-  int err;
+  time_t start, end;
+  clock_t c_start, c_end;
+
+//  // Data limited to 10 GB, 10 KB per fragment => 1,000,000 fragments
+//  // 1,000,000 / 10,000 = 100 => 100 progress bar ticks => each tick is 1%
+//  uint32_t progress_bar_fragments = 10000;
+//  uint32_t progress_bar_increment = (progress_bar_fragments / events[0].num_fragments);
 
   printf("Running batch size %d benchmark...\n", batch_size);
 
+  fdb_init_timed_network_thread(num_events, num_frags, batch_size);
   fdb_set_batch_size(batch_size);
 
-  // Write batches from array, but print a bar as a visual indicator of progress
-  for (uint32_t i = 0; i < num_events; i += progress_bar_increment) {
-    err = fdb_write_event_array(fdb, (events + i), progress_bar_increment);
-    if (err) fatal_error();
+  // Write array of events in batches
+  time(&start);
+  c_start = clock();
+//  // Write array of events in batches, and print a bar as a visual indicator of progress
+//  for (uint32_t i = 0; i < num_events; i += progress_bar_increment) {
+//    err = fdb_write_event_array((events + i), progress_bar_increment);
+//    if (err) fatal_error();
+//
+//    printf(".");
+//    fflush(stdout);
+//  }
+//  printf("\n");
+  fdb_write_event_array(events, num_events);
+  c_end = clock();
+  time(&end);
 
-    printf(".");
-    fflush(stdout);
-  }
-  printf("\n");
+  // Print timing results
+  printf("Wall clock time to write events: %.2f s\n", difftime(end, start));
+  printf("Total CPU time to write events:  %.2f s\n", (((double)(c_end - c_start)) / CLOCKS_PER_SEC));
 
   // Clean up the FoundationDB cluster
-  err = fdb_clear_event_array(fdb, events, num_events);
-  if (err) fatal_error();
+  fdb_clear_database();
+  fdb_shutdown_network_thread();
 
+  // Success
   printf("Batch size %d benchmark complete.\n", batch_size);
 }
-
-//int timed_benchmark(FDBDatabase* fdb, FragmentedEvent* events, uint32_t num_events) {
-//
-//  //
-//  int err;
-//
-//  // Setup timers
-//  clock_t t_start, t_end, b_start, b_end, b_diff;
-//  clock_t b_max = 0;
-//  clock_t b_min = (clock_t)INT_MAX;
-//  double total_time;
-//
-//  printf("Writing %u events in batches of %u...\n", num_events, 1);
-//
-//  // Start timer
-//  t_start = clock();
-//
-//  for(uint32_t i = 0; i < num_events; ++i) {
-//    // Time each write
-//    b_start = clock();
-//
-//    err = fdb_write_event(fdb, (events + i));
-//    if (err != 0) goto fatal_error;
-//
-//    // Record time if new min or new max set
-//    b_end = clock();
-//    b_diff = b_end - b_start;
-//    if (b_diff > b_max) {
-//      b_max = b_diff;
-//    } else if (b_diff < b_min) {
-//      b_min = b_diff;
-//    }
-//  }
-//
-//  // Stop the timer
-//  t_end = clock();
-//
-//  // Compute timing stats
-//  total_time = ((double)(t_end - t_start)) / CLOCKS_PER_SEC;
-//
-//  printf("Total time to write events: %.2f s\n", total_time);
-//  printf("Average time per event:     %.4f ms\n", (1000.0 * total_time / num_events));
-//  printf("Max time:                   %.4f ms\n", (1000.0 * b_max / CLOCKS_PER_SEC));
-//  printf("Avg time:                   %.4f ms\n", (1000.0 * total_time / (num_events / batch_size)));
-//  printf("Min time:                   %.4f ms\n", (1000.0 * b_min / CLOCKS_PER_SEC));
-//
-//  // Clean up database
-//  printf("Cleaning events from database...\n\n");
-//
-//  err = fdb_clear_event_array(fdb, events, num_events);
-//  if (err != 0) goto fatal_error;
-//
-//  // Success
-//  return 0;
-//
-//  // Failure
-//  fatal_error:
-//  printf("Fatal error during write benchmark\n");
-//  exit(1);
-//}
 
 void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_events, uint32_t size) {
 
@@ -389,6 +340,7 @@ void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_e
     fragment_event((*events + i), (*f_events + i));
   }
 
+  // Success
   printf("Fragmented mock events.\n");
 }
 

@@ -54,6 +54,12 @@ present.
 The state of the local FoundationDB cluster can be monitored using the `fdbcli` utility. It's self-documented, but
 additional information can be found in the [official FoundationDB documentation](https://apple.github.io/foundationdb).
 
+However, be warned that the `fdbcli` can be finicky, and can lie. Some examples:
+- Complaining that there is no memory available with 12GB memory available
+- Complaining that there is no space on the drive available when there is 50GB space available
+- Errors during benchmark tests while the `status` command shows nothing wrong
+- No errors during benchmark tests while the `status` command shows memory and storage warnings
+
 ## Soft Reset
 
 If the test or benchmark suites suffer a fatal error, the local FoundationDB may be stranded in an unclean state. It may

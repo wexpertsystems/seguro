@@ -4,8 +4,6 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-- Move benchmark timers into thread
-- Asynchronous writes
 - Benchmark write efficiency for various event fragment sizes
   - 5 KB
   - 10 KB
@@ -20,7 +18,10 @@
         - Batch write
         - Event write
         - Array write
+- Asynchronous writes
 - Test with real data from LMDB
-- Test with remote FoundationDB database
+- Test with remote FoundationDB cluster
 - Test save-delete-load-launch with real pier
+- Apply good C practices: https://github.com/mcinglis/c-style
+- Profile with valgrind
 - Add FDB Tenant support
