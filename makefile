@@ -22,6 +22,10 @@ TEST_DEP_DIR := dep/test/
 TEST_OBJ_DIR := obj/test/
 TEST_SRC_DIR := src/test/
 
+BENCH_DEP_DIR := dep/benchmark/
+BENCH_OBJ_DIR := obj/benchmark/
+BENCH_SRC_DIR := src/benchmark/
+
 SOURCES := $(shell ls $(SRC_DIR)*.c)
 OBJECTS := $(subst $(SRC_DIR),$(OBJ_DIR),$(subst .c,.o,$(SOURCES)))
 DEPFILES := $(subst $(SRC_DIR),$(DEP_DIR),$(subst .c,.d,$(SOURCES)))
@@ -30,8 +34,12 @@ TEST_SOURCES := $(shell ls $(TEST_SRC_DIR)*.c)
 TEST_OBJECTS := $(subst $(TEST_SRC_DIR),$(TEST_OBJ_DIR),$(subst .c,.o,$(TEST_SOURCES)))
 TEST_DEPFILES := $(subst $(TEST_SRC_DIR),$(TEST_DEP_DIR),$(subst .c,.d,$(TEST_SOURCES)))
 
-BENCHMARK_CMD := $(addprefix $(BIN_DIR),seguro-benchmark)
-TEST_CMD := $(addprefix $(BIN_DIR),seguro-test)
+BENCH_SOURCES := $(shell ls $(BENCH_SRC_DIR)*.c)
+BENCH_OBJECTS := $(subst $(BENCH_SRC_DIR),$(BENCH_OBJ_DIR),$(subst .c,.o,$(BENCH_SOURCES)))
+BENCH_DEPFILES := $(subst $(BENCH_SRC_DIR),$(BENCH_DEP_DIR),$(subst .c,.d,$(BENCH_SOURCES)))
+
+BENCHMARK_WRITE_CMD := $(addprefix $(BIN_DIR),seguro-benchmark-write)
+TEST_UNIT_CMD := $(addprefix $(BIN_DIR),seguro-test-unit)
 
 #==============================================================================
 # RULES
@@ -48,31 +56,43 @@ default : $(BENCHMARK_CMD) help
 help :
 	@egrep "^# target:" makefile
 
+# Run Seguro tests
+#
+# target: test - Run all Seguro tests
+#
+test : test-unit
+
 # Run Seguro unit tests
 #
-# target: test - Run Seguro unit tests
+# target: test-unit - Run Seguro unit tests
 #
-test : $(TEST_CMD)
-	@$(TEST_CMD)
+test-unit : $(TEST_UNIT_CMD)
+	@$(TEST_UNIT_CMD)
 
 # Link unit tests into an executable binary
 #
-$(TEST_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),test.o)
+$(TEST_UNIT_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),unit.o)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(addprefix $(TEST_OBJ_DIR),test.o) $(OBJECTS) $(LINK_FLAGS) -o $(TEST_CMD)
+	$(CC) $(addprefix $(TEST_OBJ_DIR),unit.o) $(OBJECTS) $(LINK_FLAGS) -o $@
 
 # Run Seguro benchmarks
 #
-# target: benchmark - Run Seguro benchmark suite
+# target: benchmark - Run all Seguro benchmarks
 #
-benchmark : $(BENCHMARK_CMD)
-	@$(BENCHMARK_CMD)
+benchmark : benchmark-write
+
+# Run Seguro write benchmarks
+#
+# target: benchmark-write - Run Seguro write benchmarks
+#
+benchmark-write : $(BENCHMARK_WRITE_CMD)
+	@$(BENCHMARK_WRITE_CMD)
 
 # Link benchmark suite into an executable binary
 #
-$(BENCHMARK_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),benchmark.o)
+$(BENCHMARK_WRITE_CMD) : $(OBJECTS) $(addprefix $(BENCH_OBJ_DIR),write.o)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(addprefix $(TEST_OBJ_DIR),benchmark.o) $(OBJECTS) $(LINK_FLAGS) -o $(BENCHMARK_CMD)
+	$(CC) $(addprefix $(BENCH_OBJ_DIR),write.o) $(OBJECTS) $(LINK_FLAGS) -o $@
 
 # Compile all source files, but do not link. As a side effect, compile a dependency file for each source file.
 #
@@ -97,9 +117,17 @@ $(addprefix $(TEST_DEP_DIR),%.d): $(addprefix $(TEST_SRC_DIR),%.c)
 	$(CC) -MD -MP -MF $@ -MT '$@ $(subst $(DEP_DIR),$(OBJ_DIR),$(@:.d=.o))' \
 		$< -c -o $(subst $(DEP_DIR),$(OBJ_DIR),$(@:.d=.o)) $(CSTD) $(PARAMS) $(DEV_CFLAGS)
 
+# Same as above, but specifically for benchmarking files
+#
+$(addprefix $(BENCH_DEP_DIR),%.d): $(addprefix $(BENCH_SRC_DIR),%.c)
+	@mkdir -p $(BENCH_OBJ_DIR)
+	@mkdir -p $(BENCH_DEP_DIR)
+	$(CC) -MD -MP -MF $@ -MT '$@ $(subst $(DEP_DIR),$(OBJ_DIR),$(@:.d=.o))' \
+		$< -c -o $(subst $(DEP_DIR),$(OBJ_DIR),$(@:.d=.o)) $(CSTD) $(PARAMS) $(DEV_CFLAGS)
+
 # Force build of dependency and object files to import additional makefile targets
 #
--include $(DEPFILES) $(TEST_DEPFILES)
+-include $(DEPFILES) $(TEST_DEPFILES) $(BENCH_DEPFILES)
 
 # Clean up files produced by the makefile. Any invocation should execute, regardless of file modification date, hence
 # dependency on FRC.
