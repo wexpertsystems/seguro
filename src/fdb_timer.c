@@ -36,13 +36,6 @@ void timer_callback(FDBFuture *future, void *t_start);
 //! @param[in] raw_ptr  Pointer to the FDBTimer
 void timer_destructor(void *raw_ptr);
 
-//! Check if a timed call to the FoundationDB API command returned an error. If so, print the error description.
-//!
-//! @param[in] err  FoundationDB error code
-//!
-//! @return   The input FoundationDB error code
-fdb_error_t timed_check_error(fdb_error_t err);
-
 //==============================================================================
 // Functions
 //==============================================================================
@@ -86,20 +79,72 @@ int fdb_send_timed_transaction(FDBTransaction *tx) {
   FDBFuture *future = fdb_transaction_commit(tx);
 
   // Register callback
-  if (timed_check_error(fdb_future_set_callback(future, &timer_callback, start_t))) goto tx_fail;
+  if (fdb_check_error(fdb_future_set_callback(future, &timer_callback, start_t))) goto tx_fail;
 
   // TODO: Synchornous; need to test asynchronous version
   // Wait for the future to be ready
-  if (timed_check_error(fdb_future_block_until_ready(future))) goto tx_fail;
+  if (fdb_check_error(fdb_future_block_until_ready(future))) goto tx_fail;
 
   // Check that the future did not return any errors
-  if (timed_check_error(fdb_future_get_error(future))) goto tx_fail;
+  if (fdb_check_error(fdb_future_get_error(future))) goto tx_fail;
 
   // Destroy the future
   fdb_future_destroy(future);
 
   // Delete existing transaction object and create a new one
   fdb_transaction_reset(tx);
+
+  // Success
+  return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
+}
+
+int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
+
+  FDBTransaction *tx;
+  uint32_t        batch_filled = 0;
+  uint32_t        frag_pos = 0;
+  uint32_t        i = 0;
+
+  // Initialize transaction
+  if (fdb_check_error(fdb_setup_transaction(&tx))) goto tx_fail;
+
+  // For each event
+  while (i < num_events) {
+
+    // Add as many unwritten fragments from the current event as possible (method differs slightly depending on whether
+    // there are already other fragments in the batch)
+    if (!batch_filled) {
+      batch_filled = add_event_set_transactions(tx, (events + i), frag_pos, fdb_batch_size);
+      frag_pos += batch_filled;
+    } else {
+      uint32_t num_kvp = add_event_set_transactions(tx, (events + i), frag_pos, (fdb_batch_size - batch_filled));
+      batch_filled += num_kvp;
+      frag_pos += num_kvp;
+    }
+
+    // Increment event counter when all fragments from an event have been written
+    if (frag_pos == events[i].num_fragments) {
+      i += 1;
+      frag_pos = 0;
+    }
+
+    // Attempt to apply transaction when batch is filled
+    if (batch_filled == fdb_batch_size) {
+      if (fdb_check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
+
+      batch_filled = 0;
+    }
+  }
+
+  // Catch the final, non-full batch
+  if (fdb_check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
+
+  // Clean up the transaction
+  fdb_transaction_destroy(tx);
 
   // Success
   return 0;
@@ -125,7 +170,7 @@ void *timed_network_thread_func(void *arg) {
 
   printf("Starting network thread...\n");
 
-  if (timed_check_error(fdb_run_network())) exit(-1);
+  if (fdb_check_error(fdb_run_network())) exit(-1);
 
   return timer;
 }
@@ -163,13 +208,4 @@ void timer_destructor(void *raw_ptr) {
   printf("Min batch time:                  %.4f ms\n", (1000.0 * timer->t_min / CLOCKS_PER_SEC));
 
   free((void *)timer);
-}
-
-fdb_error_t timed_check_error(fdb_error_t err) {
-
-  if (err) {
-    printf("fdb error: (%d) %s\n", err, fdb_get_error(err));
-  }
-
-  return err;
 }

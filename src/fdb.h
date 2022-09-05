@@ -18,6 +18,10 @@
 
 #include "event.h"
 
+#define FDB_KEY_TOTAL_LENGTH (1 + FDB_KEY_EVENT_LENGTH + FDB_KEY_FRAGMENT_LENGTH)
+#define FDB_KEY_EVENT_LENGTH 8
+#define FDB_KEY_FRAGMENT_LENGTH 4
+
 
 //==============================================================================
 // Variables
@@ -114,3 +118,17 @@ int fdb_clear_event_array(FragmentedEvent *events, uint32_t num_events);
 //! @return  0  Success
 //! @return -1  Failure
 int fdb_clear_database(void);
+
+//! Build the FoundationDB key for an event fragment.
+//!
+//! @param[in] fdb_key    Pointer to the write location for the FoundationDB key
+//! @param[in] key        The unique event identifier
+//! @param[in] fragment   The fragment number
+void fdb_build_event_key(uint8_t *fdb_key, uint64_t key, uint32_t fragment);
+
+//! Check if a FoundationDB API command returned an error. If so, print the error description.
+//!
+//! @param[in] err  FoundationDB error code
+//!
+//! @return   The input FoundationDB error code
+fdb_error_t fdb_check_error(fdb_error_t err);

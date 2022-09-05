@@ -1,6 +1,6 @@
 //! @file test.c
 //!
-//! Unit tests for
+//! Unit tests for Seguro
 
 #include <assert.h>
 #include <stdio.h>
@@ -9,7 +9,6 @@
 
 #include "../constants.h"
 #include "../event.h"
-#include "../fdb.h"
 
 
 //==============================================================================

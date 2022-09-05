@@ -8,7 +8,7 @@ DEV_CFLAGS := -Wall -Wextra -Wpedantic -Wformat=2 -Wno-unused-parameter \
              -Wshadow -Wwrite-strings -Wstrict-prototypes \
              -Wold-style-definition -Wredundant-decls -Wnested-externs \
              -Wmissing-include-dirs -Og
-LINK_FLAGS := -lfdb_c -lpthread
+LINK_FLAGS := -lm -lfdb_c -lpthread
 
 FDB_VERSION := 710
 PARAMS := -DFDB_API_VERSION=$(FDB_VERSION)
@@ -38,8 +38,10 @@ BENCH_SOURCES := $(shell ls $(BENCH_SRC_DIR)*.c)
 BENCH_OBJECTS := $(subst $(BENCH_SRC_DIR),$(BENCH_OBJ_DIR),$(subst .c,.o,$(BENCH_SOURCES)))
 BENCH_DEPFILES := $(subst $(BENCH_SRC_DIR),$(BENCH_DEP_DIR),$(subst .c,.d,$(BENCH_SOURCES)))
 
-BENCHMARK_WRITE_CMD := $(addprefix $(BIN_DIR),seguro-benchmark-write)
 TEST_UNIT_CMD := $(addprefix $(BIN_DIR),seguro-test-unit)
+TEST_INTEG_CMD := $(addprefix $(BIN_DIR),seguro-test-integ)
+
+BENCHMARK_WRITE_CMD := $(addprefix $(BIN_DIR),seguro-benchmark-write)
 
 #==============================================================================
 # RULES
@@ -60,7 +62,7 @@ help :
 #
 # target: test - Run all Seguro tests
 #
-test : test-unit
+test : test-unit test-integ
 
 # Run Seguro unit tests
 #
@@ -74,6 +76,19 @@ test-unit : $(TEST_UNIT_CMD)
 $(TEST_UNIT_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),unit.o)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(addprefix $(TEST_OBJ_DIR),unit.o) $(OBJECTS) $(LINK_FLAGS) -o $@
+
+# Run Seguro integration tests
+#
+# target: test-unit - Run Seguro integration tests
+#
+test-integ : $(TEST_INTEG_CMD)
+	@$(TEST_INTEG_CMD)
+
+# Link integration tests into an executable binary
+#
+$(TEST_INTEG_CMD) : $(OBJECTS) $(addprefix $(TEST_OBJ_DIR),integ.o)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(addprefix $(TEST_OBJ_DIR),integ.o) $(OBJECTS) $(LINK_FLAGS) -o $@
 
 # Run Seguro benchmarks
 #
