@@ -52,7 +52,6 @@ int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function
   // Register callback
   if (fdb_check_error(fdb_future_set_callback(future, callback_function, callback_param))) goto tx_fail;
 
-  // TODO: Synchornous; need to test asynchronous version
   // Wait for the future to be ready
   if (fdb_check_error(fdb_future_block_until_ready(future))) goto tx_fail;
 

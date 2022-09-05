@@ -12,13 +12,10 @@
   - 100 KB
 - Reading events
     - Unit tests
+    - Integration tests
     - Benchmarks
 - Additional unit tests
-    - Round trip of events
-        - Batch write
-        - Event write
-        - Array write
-- Asynchronous writes
+- Additional integration tests
 - Test with real data from LMDB
 - Test with remote FoundationDB cluster
 - Test save-delete-load-launch with real pier

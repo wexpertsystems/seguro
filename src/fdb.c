@@ -144,7 +144,6 @@ int fdb_send_transaction(FDBTransaction *tx) {
   // Commit event batch transaction
   FDBFuture *future = fdb_transaction_commit(tx);
 
-  // TODO: Synchornous; need to test asynchronous version
   // Wait for the future to be ready
   if (fdb_check_error(fdb_future_block_until_ready(future))) goto tx_fail;
 
