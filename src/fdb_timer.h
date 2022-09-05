@@ -10,46 +10,24 @@
 
 
 //==============================================================================
-// Variables
-//==============================================================================
-
-extern uint32_t fdb_batch_size;
-
-//==============================================================================
 // Types
 //==============================================================================
 
-typedef struct benchmark_config_t {
+typedef struct benchmark_settings_t {
   uint32_t num_events;
   uint32_t num_frags;
   uint32_t batch_size;
-} BenchmarkConfig;
+} BenchmarkSettings;
 
 typedef struct fdb_timer_t {
   clock_t  t_min;
   clock_t  t_max;
   double   t_total;
-  uint32_t num_events;
-  uint32_t num_frags;
-  uint32_t batch_size;
 } FDBTimer;
 
 //==============================================================================
 // Prototypes
 //==============================================================================
-
-//! Initialize a timed asynchronous helper process for interacting with a FoundationDB cluster.
-//!
-//! @param[in] num_events   Total number of events which plan to be written (for per-event times)
-//! @param[in] num_frags    Number of fragments per event
-//! @param[in] batch_size   Maximum size of a single batch (for pet-batch times)
-void fdb_init_timed_network_thread(uint32_t num_events, uint32_t num_frags, uint32_t batch_size);
-
-//! Initialize thread-specific data keys for timing FoundationDB writes.
-void fdb_init_timed_thread_keys(void);
-
-//! Shutdown thread-specific data keys for timing FoundationDB writes.
-void fdb_shutdown_timed_thread_keys(void);
 
 //! Attempt to synchronously apply a FoundationDB write transaction, and time it.
 //!
@@ -57,7 +35,7 @@ void fdb_shutdown_timed_thread_keys(void);
 //!
 //! @return  0  Success
 //! @return -1  Failure
-int fdb_send_timed_transaction(FDBTransaction *tx);
+int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function, void *callback_param);
 
 //! Write an array of fragmented events and timed the process.
 //!
@@ -67,6 +45,8 @@ int fdb_send_timed_transaction(FDBTransaction *tx);
 //! @return  0  Success
 //! @return -1  Failure
 int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events);
+
+int fdb_timed_clear_database(uint32_t num_events, uint32_t num_fragments);
 
 //==============================================================================
 // External Prototypes

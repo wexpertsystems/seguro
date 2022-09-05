@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
 
   // Initialize FoundationDB database
   fdb_init_database();
-  fdb_init_timed_thread_keys();
+  fdb_init_network_thread();
 
   if (custom_benchmark) {
     run_custom_write_benchmark(num_events, event_size, batch_size);
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
 
   // Clean up FoundationDB database
   printf("Tearing down database...\n");
-  fdb_shutdown_timed_thread_keys();
+  fdb_shutdown_network_thread();
   fdb_shutdown_database();
 
   // Success
@@ -204,7 +204,7 @@ void run_custom_write_benchmark(uint32_t num_events, uint32_t event_size, uint32
   if (err) fatal_error();
 
   // Clean up the FoundationDB cluster
-  err = fdb_clear_event_array(events, num_events);
+  err = fdb_timed_clear_database(num_events, events[0].num_fragments);
   if (err) fatal_error();
 
   // Clean up heap
@@ -220,14 +220,14 @@ void run_default_benchmarks(void) {
 
   // Limit amount of data written to local cluster at one time to 10 GB
   DataConfig configs[5] = {
-    { 1000000, 1 * OPTIMAL_VALUE_SIZE },
+    { 100000, 1 * OPTIMAL_VALUE_SIZE },
     { 100000, 10 * OPTIMAL_VALUE_SIZE },
     { 10000, 100 * OPTIMAL_VALUE_SIZE },
     { 4000, 250 * OPTIMAL_VALUE_SIZE },
     { 1000, 1000 * OPTIMAL_VALUE_SIZE }
   };
 
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < 1; ++i) {
     run_default_write_benchmark(configs[i]);
   }
 
@@ -242,7 +242,7 @@ void run_default_write_benchmark(DataConfig config) {
   // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
   // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
   // (10KB).
-  uint32_t batch_sizes[5] = { 1, 10, 100, 500, 900 };
+  uint32_t batch_sizes[5] = { 100, 10, 100, 500, 900 };
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
   uint16_t num_fragments = (event_size / OPTIMAL_VALUE_SIZE);
@@ -253,7 +253,7 @@ void run_default_write_benchmark(DataConfig config) {
   load_mock_events(&raw_events, &events, num_events, event_size);
 
   // Array batch writes for each batch size
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < 1; ++i) {
     timed_array_write(events, num_events, num_fragments, batch_sizes[i]);
   }
 
@@ -276,7 +276,6 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
 
   printf("Running batch size %d benchmark...\n", batch_size);
 
-  fdb_init_timed_network_thread(num_events, num_frags, batch_size);
   fdb_set_batch_size(batch_size);
 
   // Write array of events in batches
@@ -291,7 +290,7 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
 //    fflush(stdout);
 //  }
 //  printf("\n");
-  fdb_write_event_array(events, num_events);
+  fdb_timed_write_event_array(events, num_events);
   c_end = clock();
   time(&end);
 
@@ -300,8 +299,7 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
   printf("Total CPU time to write events:  %.2f s\n", (((double)(c_end - c_start)) / CLOCKS_PER_SEC));
 
   // Clean up the FoundationDB cluster
-  fdb_clear_database();
-  fdb_shutdown_network_thread();
+  fdb_timed_clear_database(num_events, num_frags);
 
   // Success
   printf("Batch size %d benchmark complete.\n", batch_size);

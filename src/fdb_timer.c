@@ -5,6 +5,7 @@
 #include <foundationdb/fdb_c.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <threads.h>
 #include <time.h>
 
 #include "fdb.h"
@@ -15,71 +16,41 @@
 // Variables
 //==============================================================================
 
+//
+extern       uint32_t fdb_batch_size;
+
 // Key for thread-specific FDBTimer.
-pthread_key_t timer_key;
+thread_local FDBTimer timer = { (clock_t)INT_MAX, (clock_t)0, 0.0 };
 
 //==============================================================================
 // Prototypes
 //==============================================================================
 
-//! Network loop function for handling interactions with a FoundationDB cluster in a separate, timed process.
-void *timed_network_thread_func(void *arg);
-
 //! Callback function for when an asynchronous FoundationDB transaction is applied successfully.
 //!
 //! @param[in] future   Handle for the FoundationDB future
 //! @param[in] t_start  Handle for a clock_t containing the time at which the transaction was launched
-void timer_callback(FDBFuture *future, void *t_start);
+void write_callback(FDBFuture *future, void *t_start);
 
-//! Destructor for the thread-specific FDBTimer.
+//! Callback function
 //!
-//! @param[in] raw_ptr  Pointer to the FDBTimer
-void timer_destructor(void *raw_ptr);
+//! @param[in] future     Handle for the FoundationDB future
+//! @param[in] settings
+void clear_callback(FDBFuture *future, void *settings);
+
+void reset_timer(void);
 
 //==============================================================================
 // Functions
 //==============================================================================
 
-void fdb_init_timed_network_thread(uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
+int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function, void *callback_param) {
 
-  BenchmarkConfig *config = malloc(sizeof(BenchmarkConfig));
-  config->num_events = num_events;
-  config->num_frags = num_frags;
-  config->batch_size = batch_size;
-
-  // Start the network thread
-  if (pthread_create(&fdb_network_thread, NULL, timed_network_thread_func, config)) {
-    perror("pthread_create() error");
-    fdb_shutdown_database();
-    exit(-1);
-  }
-}
-
-void fdb_init_timed_thread_keys(void) {
-
-  if (pthread_key_create(&timer_key, timer_destructor)) {
-    perror("timer_key pthread_key_create() error");
-    exit(-1);
-  }
-}
-
-void fdb_shutdown_timed_thread_keys(void) {
-
-  if (pthread_key_delete(timer_key)) {
-    perror("timer_key pthread_key_delete() error");
-  }
-}
-
-int fdb_send_timed_transaction(FDBTransaction *tx) {
-
-  clock_t *start_t = malloc(sizeof(clock_t));
-
-  // Start timer just before committing transaction
-  *start_t = clock();
+  // Commit transaction
   FDBFuture *future = fdb_transaction_commit(tx);
 
   // Register callback
-  if (fdb_check_error(fdb_future_set_callback(future, &timer_callback, start_t))) goto tx_fail;
+  if (fdb_check_error(fdb_future_set_callback(future, callback_function, callback_param))) goto tx_fail;
 
   // TODO: Synchornous; need to test asynchronous version
   // Wait for the future to be ready
@@ -104,6 +75,7 @@ int fdb_send_timed_transaction(FDBTransaction *tx) {
 
 int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
 
+  clock_t        *start_t = malloc(sizeof(clock_t));
   FDBTransaction *tx;
   uint32_t        batch_filled = 0;
   uint32_t        frag_pos = 0;
@@ -134,17 +106,24 @@ int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
 
     // Attempt to apply transaction when batch is filled
     if (batch_filled == fdb_batch_size) {
-      if (fdb_check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
+      // Start timer just before committing transaction
+      *start_t = clock();
+
+      if (fdb_check_error(fdb_send_timed_transaction(tx, (FDBCallback)&write_callback, (void *)start_t))) goto tx_fail;
 
       batch_filled = 0;
     }
   }
 
   // Catch the final, non-full batch
-  if (fdb_check_error(fdb_send_timed_transaction(tx))) goto tx_fail;
+  *start_t = clock();
+  if (fdb_check_error(fdb_send_timed_transaction(tx, (FDBCallback)&write_callback, (void *)start_t))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
+
+  // Clean up the timer
+  free((void *)start_t);
 
   // Success
   return 0;
@@ -154,58 +133,77 @@ int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
   return -1;
 }
 
-void *timed_network_thread_func(void *arg) {
+int fdb_timed_clear_database(uint32_t num_events, uint32_t num_fragments) {
 
-  pthread_setspecific(timer_key, malloc(sizeof(FDBTimer)));
+  BenchmarkSettings *settings = malloc(sizeof(BenchmarkSettings));
+  FDBTransaction    *tx;
+  uint8_t            start_key[1] = { 0 };
+  uint8_t            end_key[1] = { 0xFF };
 
-  FDBTimer *timer = pthread_getspecific(timer_key);
-  timer->t_min = (clock_t)INT_MAX;
-  timer->t_max = (clock_t)0;
-  timer->t_total = 0.0;
-  timer->num_events = ((BenchmarkConfig *)arg)->num_events;
-  timer->num_frags = ((BenchmarkConfig *)arg)->num_frags;
-  timer->batch_size = ((BenchmarkConfig *)arg)->batch_size;
+  // Initialize transaction
+  if (fdb_check_error(fdb_setup_transaction(&tx))) goto tx_fail;
 
-  free(arg);
+  // Add clear operation to transaction
+  fdb_transaction_clear_range(tx, start_key, 1, end_key, 1);
 
-  printf("Starting network thread...\n");
+  // Setup settings
+  settings->num_events = num_events;
+  settings->num_frags = num_fragments;
+  settings->batch_size = fdb_batch_size;
 
-  if (fdb_check_error(fdb_run_network())) exit(-1);
+  // Catch the final, non-full batch
+  if (fdb_send_timed_transaction(tx, (FDBCallback)&clear_callback, (void *)settings)) goto tx_fail;
 
-  return timer;
+  // Clean up the transaction
+  fdb_transaction_destroy(tx);
+
+  // Clean up settings
+  free((void *)settings);
+
+  // Success
+  return 0;
+
+  // Failure
+  tx_fail:
+  return -1;
 }
 
-void timer_callback(FDBFuture *future, void *t_start) {
+void write_callback(FDBFuture *future, void *param) {
 
   // Output timing stats
-  FDBTimer* timer = pthread_getspecific(timer_key);
-  clock_t   t_end = clock();
-  clock_t   t_diff = (t_end - *((clock_t *)t_start));
-  double    total_time = 1000.0 * t_diff / CLOCKS_PER_SEC;
+  clock_t t_start = *((clock_t *)param);
+  clock_t t_end = clock();
+  clock_t t_diff = (t_end - t_start);
+  double  total_time = 1000.0 * t_diff / CLOCKS_PER_SEC;
 
-  if (t_diff < timer->t_min) {
-    timer->t_min = t_diff;
+  if (t_diff < timer.t_min) {
+    timer.t_min = t_diff;
   }
 
-  if (t_diff > timer->t_max) {
-    timer->t_max = t_diff;
+  if (t_diff > timer.t_max) {
+    timer.t_max = t_diff;
   }
 
-  timer->t_total += total_time;
-
-  free(t_start);
+  timer.t_total += total_time;
 }
 
-void timer_destructor(void *raw_ptr) {
+void clear_callback(FDBFuture *future, void *param) {
 
-  FDBTimer *timer = raw_ptr;
+  BenchmarkSettings *settings = (BenchmarkSettings *)param;
 
-  printf("Thread time to write events:     %.2f s\n", (timer->t_total / 1000.0));
-  printf("Average time per event:          %.4f ms\n", (timer->t_total / timer->num_events));
-  printf("Max batch time:                  %.4f ms\n", (1000.0 * timer->t_max / CLOCKS_PER_SEC));
+  printf("Thread time to write events:     %.2f s\n", (timer.t_total / 1000.0));
+  printf("Average time per event:          %.4f ms\n", (timer.t_total / settings->num_events));
+  printf("Max batch time:                  %.4f ms\n", (1000.0 * timer.t_max / CLOCKS_PER_SEC));
   printf("Avg batch time:                  %.4f ms\n",
-         (timer->t_total / (timer->num_events * timer->num_frags) * timer->batch_size));
-  printf("Min batch time:                  %.4f ms\n", (1000.0 * timer->t_min / CLOCKS_PER_SEC));
+         (timer.t_total / (settings->num_events * settings->num_frags) * settings->batch_size));
+  printf("Min batch time:                  %.4f ms\n", (1000.0 * timer.t_min / CLOCKS_PER_SEC));
 
-  free((void *)timer);
+  reset_timer();
+}
+
+void reset_timer(void) {
+
+  timer.t_min = (clock_t)INT_MAX;
+  timer.t_max = (clock_t)0;
+  timer.t_total = 0.0;
 }
