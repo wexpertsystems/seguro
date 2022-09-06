@@ -1,6 +1,6 @@
 //! @file benchmark.c
 //!
-//! Benchmarking suite for Seguro Phase 2.
+//! Write benchmark suite for Seguro Phase 2.
 //!
 //! Documentation links:
 //!   https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
@@ -8,7 +8,6 @@
 //!   https://apple.github.io/foundationdb/benchmarking.html
 
 #include <foundationdb/fdb_c.h>
-#include <getopt.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -35,20 +34,13 @@ typedef struct data_config_t {
 // Prototypes
 //==============================================================================
 
-//! Run a custom benchmark test on Seguro.
-//!
-//! @param[in] num_events   The number of events to test writing
-//! @param[in] event_size   The size of each event, in bytes
-//! @param[in] batch_size   The number of events to write per FDB transaction
-void run_custom_write_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size);
-
 //! Run the default benchmarking suite for Seguro.
-void run_default_benchmarks(void);
+void run_benchmarks(void);
 
 //! Run the default event write benchmarks.
 //!
 //! @param[in] config   Configuration settings for the benchmark test
-void run_default_write_benchmark(DataConfig config);
+void run_write_benchmark(DataConfig config);
 
 //! Write an array of events to a FoundationDB cluster and time the process.
 //!
@@ -88,93 +80,24 @@ uint32_t parse_pos_int(char const *str);
 // Functions
 //==============================================================================
 
-//! Execute the Seguro benchmark suite. Takes several command-line arguments which can be used to specify a custom
-//! benchmark.
+//! Execute the Seguro write benchmark suite.
 //!
 //! @param[in] argc  Number of command-line options provided.
 //! @param[in] argv  Array of command-line options provided.
 //!
 //! @return  0  Success
-//! @return  1  Failure (bad input)
 //! @return -1  Failure (error occurred)
 int main(int argc, char **argv) {
 
-  // Variables to parse command line options using getopt
-  int opt;
-  int longindex;
-  static struct option longopts[] = {
-    // name         has_arg            flag   val
-    { "custom",     no_argument,       NULL, 'c' },
-    { "num-events", required_argument, NULL, 'n' },
-    { "event-size", required_argument, NULL, 'e' },
-    { "batch-size", required_argument, NULL, 'b' },
-    {NULL,          0,                 NULL, 0}
-  };
-
-  // Variables for custom benchmark
-
-  // Run custom benchmark?
-  bool custom_benchmark = false;
-  // Number of events to generate
-  uint32_t num_events = 10000;
-  // Event size in bytes (10KB by default)
-  uint32_t event_size = 10000;
-  // Event batch size (10 by default)
-  uint32_t batch_size = 10;
-
-  // Parse options
-  while ((opt = getopt_long(argc, argv, "-cn:e:b:", longopts, &longindex)) != EOF) {
-    switch (opt) {
-      case 'c':
-        custom_benchmark = true;
-        break;
-      case 'n':
-        num_events = parse_pos_int(optarg);
-        if (!num_events) {
-          printf("%s: 'num-events' expects a positive integer argument.\n", argv[0]);
-          exit(1);
-        }
-        break;
-      case 'e':
-        event_size = parse_pos_int(optarg);
-        if (!event_size) {
-          printf("%s: 'event-size' expects a positive integer argument.\n", argv[0]);
-          exit(1);
-        }
-        break;
-      case 'b':
-        batch_size = parse_pos_int(optarg);
-        if (!batch_size) {
-          printf("%s: 'batch-size' expects a positive integer argument.\n", argv[0]);
-          exit(1);
-        }
-        break;
-      case 1:
-        printf ("%s: unexpected argument '%s'\n", argv[0], optarg);
-      default: // '?', ':', 0
-        exit(1);
-    }
-  }
-
-  // Validate input arguments
-  if (num_events % batch_size) {
-    printf ("%s: num-events (%u) not divisable by batch_size (%u)\n", argv[0], num_events, batch_size);
-    exit(1);
-  }
-
   // Run benchmark(s)
-
   printf("Seguro Phase 2 benchmarks...\n");
 
   // Initialize FoundationDB database
   fdb_init_database();
   fdb_init_network_thread();
 
-  if (custom_benchmark) {
-    run_custom_write_benchmark(num_events, event_size, batch_size);
-  } else {
-    run_default_benchmarks();
-  }
+  // Run benchmarks
+  run_benchmarks();
 
   // Clean up FoundationDB database
   printf("Tearing down database...\n");
@@ -186,55 +109,27 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void run_custom_write_benchmark(uint32_t num_events, uint32_t event_size, uint32_t batch_size) {
-
-  printf("Running custom benchmark...\n");
-
-  Event           *raw_events;
-  FragmentedEvent *events;
-  int              err;
-
-  // Generate mock events
-  printf("Generating %u mock events...\n", num_events);
-  load_mock_events(&raw_events, &events, num_events, event_size);
-
-  // Run the custom write benchmark
-  fdb_set_batch_size(batch_size);
-  err = fdb_write_event_array(events, num_events);
-  if (err) fatal_error();
-
-  // Clean up the FoundationDB cluster
-  err = fdb_timed_clear_database(num_events, events[0].num_fragments);
-  if (err) fatal_error();
-
-  // Clean up heap
-  release_events_memory(raw_events, events, num_events);
-
-  // Success
-  printf("Custom benchmark complete.\n");
-}
-
-void run_default_benchmarks(void) {
+void run_benchmarks(void) {
 
   printf("Running default benchmarks...\n");
 
   // Limit amount of data written to local cluster at one time to 10 GB
   DataConfig configs[5] = {
-    { 100000, 1 * OPTIMAL_VALUE_SIZE },
+    { 1000000, 1 * OPTIMAL_VALUE_SIZE },
     { 100000, 10 * OPTIMAL_VALUE_SIZE },
     { 10000, 100 * OPTIMAL_VALUE_SIZE },
     { 4000, 250 * OPTIMAL_VALUE_SIZE },
     { 1000, 1000 * OPTIMAL_VALUE_SIZE }
   };
 
-  for (uint8_t i = 0; i < 1; ++i) {
+  for (uint8_t i = 0; i < 5; ++i) {
     run_default_write_benchmark(configs[i]);
   }
 
   printf("\nDefault benchmarks complete.\n");
 }
 
-void run_default_write_benchmark(DataConfig config) {
+void run_write_benchmark(DataConfig config) {
 
   Event           *raw_events;
   FragmentedEvent *events;
@@ -242,7 +137,7 @@ void run_default_write_benchmark(DataConfig config) {
   // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
   // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
   // (10KB).
-  uint32_t batch_sizes[5] = { 100, 10, 100, 500, 900 };
+  uint32_t batch_sizes[5] = { 1, 10, 100, 500, 900 };
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
   uint16_t num_fragments = (event_size / OPTIMAL_VALUE_SIZE);
@@ -253,7 +148,7 @@ void run_default_write_benchmark(DataConfig config) {
   load_mock_events(&raw_events, &events, num_events, event_size);
 
   // Array batch writes for each batch size
-  for (uint8_t i = 0; i < 1; ++i) {
+  for (uint8_t i = 0; i < 5; ++i) {
     timed_array_write(events, num_events, num_fragments, batch_sizes[i]);
   }
 
