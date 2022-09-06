@@ -43,6 +43,9 @@ void test_write_event(void);
 //! Test that an array of events can be written to a FoundationDB cluster in their entirety.
 void test_write_event_array(void);
 
+// TODO
+void test_read_event(void);
+
 //! Generate random, fake data for simulating events.
 //!
 //! @param[in] size   Number of bytes of data to generate
@@ -95,6 +98,7 @@ int main(int argc, char **argv) {
   test_write_batch();
   test_write_event();
   test_write_event_array();
+  test_read_event();
 
   // Success
   printf("\nIntegration tests completed successfully.\n");
@@ -596,6 +600,58 @@ void test_write_event_array(void) {
 
   // Success
   printf("fdb_write_event_array() test PASSED\n");
+}
+
+void test_read_event(void) {
+
+  FDBTransaction  *tx;
+  Event            mock_event, return_event;
+  FragmentedEvent  mock_f_event;
+  uint64_t         event_id = 42;
+  uint32_t         data_size = (3 * OPTIMAL_VALUE_SIZE);
+
+  printf("\nStarting fdb_read_event() test...\n");
+
+  // Setup FoundationDB batch settings
+  fdb_set_batch_size(10);
+
+  // Setup event
+  mock_event.id = event_id;
+  mock_event.data_length = data_size;
+  mock_event.data = generate_dummy_data(data_size);
+
+  fragment_event(&mock_event, &mock_f_event);
+
+  return_event.id = event_id;
+
+  // Setup transaction handle
+  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+
+  // Verify that database is empty before test
+  assert(count_keys_in_database(tx) == 0);
+
+  // fdb_write_event() uses its own transaction, so we need to discard ours
+  fdb_transaction_destroy(tx);
+
+  // Write event to FoundationDB cluster
+  fdb_write_event(&mock_f_event);
+
+  // Attempt to read event back from FoundationDB cluster
+  fdb_read_event(&return_event);
+
+  // Verify that output data matches input data
+  assert(mock_event.data_length == return_event.data_length);
+  assert(!memcmp(mock_event.data, return_event.data, data_size));
+
+  // Release the dummy data memory
+  free((void *)mock_event.data);
+  free((void *)return_event.data);
+
+  // Clear the database
+  fdb_clear_database();
+
+  // Success
+  printf("fdb_read_event() test PASSED\n");
 }
 
 uint8_t *generate_dummy_data(uint64_t size) {

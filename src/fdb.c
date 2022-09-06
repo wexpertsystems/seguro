@@ -324,9 +324,9 @@ int fdb_read_event(Event *event) {
     // Copy each fragment to final event memory (skipping the first fragment)
     for (uint8_t i = (out_counted == 0); i < out_count; ++i) {
       // Every fragment after the first should be EXACTLY the preset size
-      if (out_kv[i].value_length == OPTIMAL_VALUE_SIZE) goto tx_fail;
+      if (out_kv[i].value_length != OPTIMAL_VALUE_SIZE) goto tx_fail;
 
-      memcpy((event->data + payload_length + (OPTIMAL_VALUE_SIZE * i)), out_kv[i].value, OPTIMAL_VALUE_SIZE);
+      memcpy((event->data + payload_length + (OPTIMAL_VALUE_SIZE * (i - 1))), out_kv[i].value, OPTIMAL_VALUE_SIZE);
     }
 
     out_counted += out_count;
