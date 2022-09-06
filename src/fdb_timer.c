@@ -132,7 +132,7 @@ int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
   return -1;
 }
 
-int fdb_timed_clear_database(uint32_t num_events, uint32_t num_fragments) {
+int fdb_clear_timed_database(uint32_t num_events, uint32_t num_fragments) {
 
   BenchmarkSettings *settings = malloc(sizeof(BenchmarkSettings));
   FDBTransaction    *tx;

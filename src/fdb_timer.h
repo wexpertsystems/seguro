@@ -46,7 +46,7 @@ int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function
 //! @return -1  Failure
 int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events);
 
-int fdb_timed_clear_database(uint32_t num_events, uint32_t num_fragments);
+int fdb_clear_timed_database(uint32_t num_events, uint32_t num_fragments);
 
 //==============================================================================
 // External Prototypes

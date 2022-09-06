@@ -43,7 +43,7 @@ void test_write_event(void);
 //! Test that an array of events can be written to a FoundationDB cluster in their entirety.
 void test_write_event_array(void);
 
-// TODO
+//! Test that an event can be read from a FoundationDB cluster in its entirety.
 void test_read_event(void);
 
 //! Generate random, fake data for simulating events.
@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
   fdb_init_network_thread();
 
   // Run integration tests
+  // TODO: Could fail tests more gracefully, using calls to 'fail_test()' instead of asserts
   test_write_to_fdb();
   test_clear_from_fdb();
   test_clear_event();
@@ -754,7 +755,7 @@ void fail_test(void) {
   fdb_shutdown_network_thread();
   fdb_shutdown_database();
 
-  printf("FAILED\n");
+  printf("test FAILED\n");
 
   exit(-1);
 }

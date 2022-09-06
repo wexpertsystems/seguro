@@ -123,7 +123,7 @@ void run_benchmarks(void) {
   };
 
   for (uint8_t i = 0; i < 5; ++i) {
-    run_default_write_benchmark(configs[i]);
+    run_write_benchmark(configs[i]);
   }
 
   printf("\nDefault benchmarks complete.\n");
@@ -185,7 +185,7 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
 //    fflush(stdout);
 //  }
 //  printf("\n");
-  fdb_timed_write_event_array(events, num_events);
+  if (fdb_timed_write_event_array(events, num_events)) fatal_error();
   c_end = clock();
   time(&end);
 
@@ -194,7 +194,7 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
   printf("Total CPU time to write events:  %.2f s\n", (((double)(c_end - c_start)) / CLOCKS_PER_SEC));
 
   // Clean up the FoundationDB cluster
-  fdb_timed_clear_database(num_events, num_frags);
+  if (fdb_clear_timed_database(num_events, num_frags)) fatal_error();
 
   // Success
   printf("Batch size %d benchmark complete.\n", batch_size);
@@ -257,7 +257,7 @@ void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t nu
 }
 
 void fatal_error(void) {
-  printf("Fatal error during benchmarks\n");
+  fprintf(stderr, "Fatal error during benchmarks\n");
   exit(1);
 }
 

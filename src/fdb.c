@@ -66,7 +66,7 @@ void fdb_init_database(void) {
   struct stat cluster_file_buffer;
   uint32_t cluster_file_stat = stat(cluster_file_path, &cluster_file_buffer);
   if (cluster_file_stat != 0) {
-    printf("ERROR: no fdb.cluster file found at: %s\n", cluster_file_path);
+    fprintf(stderr, "ERROR: no fdb.cluster file found at: %s\n", cluster_file_path);
     exit(1);
   }
 
@@ -465,7 +465,7 @@ void fdb_build_event_key(uint8_t *fdb_key, uint64_t key, uint32_t fragment) {
 
 fdb_error_t fdb_check_error(fdb_error_t err) {
   if (err) {
-    printf("fdb error: (%d) %s\n", err, fdb_get_error(err));
+    fprintf(stderr, "fdb error: (%d) %s\n", err, fdb_get_error(err));
   }
 
   return err;
@@ -543,8 +543,7 @@ void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
 }
 
 void check_error_bail(fdb_error_t err) {
-  if (err) {
-    printf("fdb error: (%d) %s\n", err, fdb_get_error(err));
+  if (fdb_check_error(err)) {
     exit(-1);
   }
 }
