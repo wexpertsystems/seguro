@@ -45,7 +45,7 @@ void fragment_event(Event *event, FragmentedEvent *f_event) {
   header_length = build_header(f_event->header, num_fragments - 1);
 
   // Setup remaining members of fragmented event
-  f_event->key = event->key;
+  f_event->id = event->id;
   f_event->num_fragments = num_fragments;
   f_event->header_length = header_length;
   f_event->payload_length = payload_length;
@@ -73,16 +73,29 @@ uint8_t build_header(uint8_t *header, uint32_t num_fragments) {
 
   for (uint8_t i = 1; i < (MAX_HEADER_SIZE - 1); ++i) {
     if (num_fragments < ((uint32_t)(1 << (i * 8)))) {
-      header[0] = (EXTENDED_HEADER & i);
+      header[0] = (EXTENDED_HEADER | i);
       memcpy((header + 1), &num_fragments, i);
       return (i + 1);
     }
   }
 
   // Technically this is wrong if num_fragments >= 2^24
-  header[0] = (EXTENDED_HEADER & (MAX_HEADER_SIZE - 1));
+  header[0] = (EXTENDED_HEADER | (MAX_HEADER_SIZE - 1));
   memcpy((header + 1), &num_fragments, (MAX_HEADER_SIZE - 1));
   return MAX_HEADER_SIZE;
+}
+
+uint8_t read_header(const uint8_t *header, uint32_t *num_fragments) {
+
+  if (header[0] & EXTENDED_HEADER) {
+    uint8_t header_bytes = (header[0] ^ EXTENDED_HEADER);
+    memcpy((uint8_t *)num_fragments, (header + 1), header_bytes);
+
+    return (header_bytes + 1);
+  }
+
+  *num_fragments = header[0];
+  return 1;
 }
 
 void free_event(Event *event) {

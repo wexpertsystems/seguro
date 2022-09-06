@@ -96,6 +96,23 @@ int fdb_write_event(FragmentedEvent *event);
 //! @return -1  Failure
 int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events);
 
+//! Read event fragments from the database and combine them into one event.
+//!
+//! @param[in] event  Handle for the event to write to
+//!
+//! @return  0  Success
+//! @return -1  Failure
+int fdb_read_event(Event *event);
+
+//! Read an array of events from the database.
+//!
+//! @param[in] events       Handle for the event array
+//! @param[in] num_events   Number of events in array
+//!
+//! @return  0  Success
+//! @return -1  Failure
+int fdb_read_event_array(Event *events, uint32_t num_events);
+
 //! Remove a single fragmented event from the database.
 //!
 //! @param[in] event  Handle for the event to remove

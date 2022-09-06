@@ -16,13 +16,13 @@
 //==============================================================================
 
 typedef struct event_t {
-  uint64_t  key;          // Unique, ordered identifier for event
+  uint64_t  id;           // Unique, ordered identifier for event
   uint64_t  data_length;  // Length of event data in bytes
   uint8_t  *data;         // Pointer to event data array
 } Event;
 
 typedef struct fragmented_event_t {
-  uint64_t   key;                     // Unique, ordered identifier for event
+  uint64_t   id;                      // Unique, ordered identifier for event
   uint32_t   num_fragments;           // Number of fragments into which the event has been split
   uint8_t    header[MAX_HEADER_SIZE]; // Header for first fragment which encodes the number of fragments
   uint8_t    header_length;           // Length of header in bytes
@@ -48,6 +48,14 @@ void fragment_event(Event *event, FragmentedEvent *f_event);
 //!
 //! @return   The length of the header in bytes
 uint8_t build_header(uint8_t *header, uint32_t num_fragments);
+
+//! Read the total number of fragments for an event from the header.
+//!
+//! @param[in] header         Handle for the header
+//! @param[in] num_fragments  Handle for location to which to write the number of fragments
+//!
+//! @return   The length of the header in bytes
+uint8_t read_header(const uint8_t *header, uint32_t *num_fragments);
 
 //! Deallocate the heap memory used by an event.
 //!

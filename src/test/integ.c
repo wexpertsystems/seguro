@@ -228,7 +228,7 @@ void test_clear_event(void) {
   printf("\nStarting fdb_clear_event() test...\n");
 
   // Setup dummy fragmented event
-  dummy_event.key = event_id;
+  dummy_event.id = event_id;
   dummy_event.num_fragments = num_fragments;
 
   // Setup transaction handle
@@ -295,7 +295,7 @@ void test_clear_event_array(void) {
 
   for (uint8_t i = 0; i < num_events; ++i) {
     // Want deterministic keys that are unordered and don't collide
-    mock_events[i].key = (((lrint(pow(10.0, i))) + i) % 90000);
+    mock_events[i].id = (((lrint(pow(10.0, i))) + i) % 90000);
     mock_events[i].data_length = data_size;
     mock_events[i].data = generate_dummy_data(data_size);
 
@@ -311,7 +311,7 @@ void test_clear_event_array(void) {
   // Manually add keys for a dummy event to the database
   for (uint32_t i = 0; i < num_events; ++i) {
     uint8_t key[FDB_KEY_TOTAL_LENGTH];
-    fdb_build_event_key(key, mock_f_events[i].key, 0);
+    fdb_build_event_key(key, mock_f_events[i].id, 0);
 
     fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, mock_f_events[i].fragments[0], mock_f_events[i].payload_length);
   }
@@ -320,7 +320,7 @@ void test_clear_event_array(void) {
 
   // Verify that the events are in the database
   for (uint32_t i = 0; i < num_events; ++i) {
-    assert(count_event_fragments_in_database(tx, mock_f_events[i].key) == 1);
+    assert(count_event_fragments_in_database(tx, mock_f_events[i].id) == 1);
   }
 
   // fdb_clear_event() uses its own transaction, so we need to discard ours
@@ -365,7 +365,7 @@ void test_clear_database(void) {
   mock_f_events = malloc(sizeof(FragmentedEvent) * num_events);
 
   for (uint8_t i = 0; i < num_events; ++i) {
-    mock_events[i].key = i;
+    mock_events[i].id = i;
     mock_events[i].data_length = data_size;
     mock_events[i].data = generate_dummy_data(data_size);
 
@@ -383,7 +383,7 @@ void test_clear_database(void) {
     uint8_t key[FDB_KEY_TOTAL_LENGTH];
 
     for (uint8_t j = 0; j < num_fragments; ++j) {
-      fdb_build_event_key(key, mock_f_events[i].key, j);
+      fdb_build_event_key(key, mock_f_events[i].id, j);
 
       fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, mock_f_events[i].fragments[j], OPTIMAL_VALUE_SIZE);
     }
@@ -437,7 +437,7 @@ void test_write_batch(void) {
   fdb_set_batch_size(1);
 
   // Setup event
-  mock_event.key = event_id;
+  mock_event.id = event_id;
   mock_event.data_length = data_size;
   mock_event.data = generate_dummy_data(data_size);
 
@@ -496,7 +496,7 @@ void test_write_event(void) {
   fdb_set_batch_size(1);
 
   // Setup event
-  mock_event.key = event_id;
+  mock_event.id = event_id;
   mock_event.data_length = data_size;
   mock_event.data = generate_dummy_data(data_size);
 
@@ -554,7 +554,7 @@ void test_write_event_array(void) {
     // Want to test mixing events, splitting events in the middle, and multiple fragments for a single event
     uint32_t data_size = ((lrint(pow(10.0, i))) * OPTIMAL_VALUE_SIZE);
 
-    mock_events[i].key = i;
+    mock_events[i].id = i;
     mock_events[i].data_length = data_size;
     mock_events[i].data = generate_dummy_data(data_size);
 
@@ -578,7 +578,7 @@ void test_write_event_array(void) {
 
   // Verify that the events are in the database
   for (uint8_t i = 0; i < num_events; ++i) {
-    assert(count_event_fragments_in_database(tx, mock_f_events[i].key) == mock_f_events[i].num_fragments);
+    assert(count_event_fragments_in_database(tx, mock_f_events[i].id) == mock_f_events[i].num_fragments);
   }
 
   // Release the dummy data memory

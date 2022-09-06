@@ -324,7 +324,7 @@ void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_e
     }
 
     // Generate Event from data
-    (*events)[i].key = i;
+    (*events)[i].id = i;
     (*events)[i].data_length = size;
     (*events)[i].data = data;
   }

@@ -268,6 +268,108 @@ int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events) {
   return -1;
 }
 
+int fdb_read_event(Event *event) {
+
+  FDBFuture         *future;
+  FDBTransaction    *tx;
+  const FDBKeyValue *out_kv;
+  fdb_bool_t         out_more;
+  int32_t            out_count;
+  uint32_t           out_counted = 0;
+  uint32_t           num_fragments = 0;
+  uint16_t           payload_length;
+  uint8_t            range_start_key[FDB_KEY_TOTAL_LENGTH];
+  uint8_t            range_end_key[FDB_KEY_TOTAL_LENGTH];
+
+  // Setup keys for range read
+  fdb_build_event_key(range_start_key, event->id, 0);
+  fdb_build_event_key(range_end_key, (event->id + 1), 0);
+
+  // Setup transaction
+  if (fdb_check_error(fdb_setup_transaction(&tx))) {
+    return -1;
+  }
+
+  // Loop until FoundationDB says there is no more data
+  do {
+    out_more = 0;
+
+    // Read data range
+    future = fdb_transaction_get_range(tx,
+                                       range_start_key, FDB_KEY_TOTAL_LENGTH, 1, out_counted,
+                                       range_end_key, FDB_KEY_TOTAL_LENGTH, 0, 1,
+                                       0, 0, FDB_STREAMING_MODE_WANT_ALL, 0, 0, 0);
+    if (fdb_check_error(fdb_future_block_until_ready(future))) goto tx_fail;
+    if (fdb_check_error(fdb_future_get_error(future))) goto tx_fail;
+    if (fdb_check_error(fdb_future_get_keyvalue_array(future, &out_kv, &out_count, &out_more))) goto tx_fail;
+
+    // Read header from very first batch
+    if (!num_fragments) {
+      // Get number of fragments and header length
+      uint8_t  header_length = read_header((const uint8_t *)out_kv[0].value, &num_fragments);
+
+      // Use header length to calculate payload
+      payload_length = (out_kv[0].value_length - header_length);
+
+      // Allocate memory for the event and copy the payload
+      event->data_length = ((num_fragments * OPTIMAL_VALUE_SIZE) + payload_length);
+      event->data = malloc(sizeof(uint8_t) * event->data_length);
+
+      memcpy(event->data, (out_kv[0].value + header_length), payload_length);
+
+      // Header stores number of ADDITIONAL fragments
+      ++num_fragments;
+    }
+
+    // Copy each fragment to final event memory (skipping the first fragment)
+    for (uint8_t i = (out_counted == 0); i < out_count; ++i) {
+      // Every fragment after the first should be EXACTLY the preset size
+      if (out_kv[i].value_length == OPTIMAL_VALUE_SIZE) goto tx_fail;
+
+      memcpy((event->data + payload_length + (OPTIMAL_VALUE_SIZE * i)), out_kv[i].value, OPTIMAL_VALUE_SIZE);
+    }
+
+    out_counted += out_count;
+
+    fdb_future_destroy(future);
+    continue;
+
+    tx_fail:
+    fdb_future_destroy(future);
+    fdb_transaction_destroy(tx);
+    free((void *)event->data);
+    return -1;
+
+  } while (out_more);
+
+  fdb_transaction_destroy(tx);
+
+  // Fail on mismatch between found keys and number of fragments recorded in header
+  if (num_fragments != out_counted) {
+    free((void *)event->data);
+    return -1;
+  }
+
+  // Success
+  return 0;
+}
+
+int fdb_read_event_array(Event *events, uint32_t num_events) {
+
+  for (uint32_t i = 0; i < num_events; ++i) {
+    if (fdb_read_event(events + i)) {
+      for (uint32_t j = 0; j < i; ++j) {
+        free((void *)(events + j));
+      }
+
+      return -1;
+    }
+  }
+
+  // Success
+  return 0;
+}
+
 int fdb_clear_event(FragmentedEvent *event) {
 
   FDBTransaction *tx;
@@ -359,8 +461,6 @@ void fdb_build_event_key(uint8_t *fdb_key, uint64_t key, uint32_t fragment) {
   for (uint8_t i = 0; i < FDB_KEY_FRAGMENT_LENGTH; ++i) {
     fdb_key[(FDB_KEY_TOTAL_LENGTH - (i + 1))] = ((uint8_t *)(& fragment))[i];
   }
-//  memcpy((fdb_key + 1), &key, FDB_KEY_EVENT_LENGTH);
-//  memcpy((fdb_key + FDB_KEY_EVENT_LENGTH + 1), &fragment, FDB_KEY_FRAGMENT_LENGTH);
 }
 
 fdb_error_t fdb_check_error(fdb_error_t err) {
@@ -397,7 +497,7 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
     memcpy(value, event->header, event->header_length);
     memcpy((value + event->header_length), event->fragments[0], event->payload_length);
 
-    fdb_build_event_key(key, event->key, 0);
+    fdb_build_event_key(key, event->id, 0);
 
     fdb_transaction_set(tx,
                         key,
@@ -410,7 +510,7 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event, 
 
   for (uint32_t i = start_pos; i < end_pos; ++i) {
     // Setup key for event fragment
-    fdb_build_event_key(key, event->key, i);
+    fdb_build_event_key(key, event->id, i);
 
     // Add write operation to transaction
     fdb_transaction_set(tx,
@@ -429,10 +529,10 @@ void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
   uint8_t  range_end_key[FDB_KEY_TOTAL_LENGTH] = { 0 };
 
   // Setup start key for range
-  fdb_build_event_key(range_start_key, event->key, 0);
+  fdb_build_event_key(range_start_key, event->id, 0);
 
   // Setup end key for range
-  fdb_build_event_key(range_end_key, event->key, event->num_fragments);
+  fdb_build_event_key(range_end_key, event->id, event->num_fragments);
 
   // Add clear operation to transaction
   fdb_transaction_clear_range(tx,

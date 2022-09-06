@@ -27,8 +27,14 @@ void test_fragment_event_small(void);
 //! Test fragmentation for an event with multiple fragments and an odd-sized leftover payload.
 void test_fragment_event_large(void);
 
+//! Test building/reading headers.
+void test_headers(void);
+
 //! Test fragmented event header construction.
 void test_build_header(void);
+
+//! Test reading information from event headers.
+void test_read_header(void);
 
 //==============================================================================
 // Functions
@@ -47,7 +53,7 @@ int main(int argc, char **argv) {
 
   // Run tests
   test_fragment_event();
-  test_build_header();
+  test_headers();
 
   // Success
   printf("\nUnit tests completed successfully.\n");
@@ -70,9 +76,9 @@ void test_fragment_event_trivial(void) {
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  key = 123;
+  uint64_t  id = 123;
   uint8_t   data[1];
-  Event     event = { key, 1, data };
+  Event     event = { id, 1, data };
 
   // Fragment event
   fragment_event(&event, &f_event);
@@ -80,7 +86,7 @@ void test_fragment_event_trivial(void) {
   // Confirm correct state
   printf("\ttrivial event fragmentation... ");
 
-  assert(f_event.key == key);
+  assert(f_event.id == id);
   assert(f_event.num_fragments == 1);
   assert(f_event.header[0] == 0);
   assert(f_event.header_length == 1);
@@ -95,10 +101,10 @@ void test_fragment_event_small(void) {
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  key = 456;
+  uint64_t  id = 456;
   uint16_t  data_length = OPTIMAL_VALUE_SIZE;
   uint8_t   data[data_length];
-  Event     event = { key, data_length, data };
+  Event     event = { id, data_length, data };
 
   // Fragment event
   fragment_event(&event, &f_event);
@@ -106,7 +112,7 @@ void test_fragment_event_small(void) {
   // Confirm correct state
   printf("\tmax size single fragment... ");
 
-  assert(f_event.key == key);
+  assert(f_event.id == id);
   assert(f_event.num_fragments == 1);
   assert(f_event.header[0] == 0);
   assert(f_event.header_length == 1);
@@ -121,10 +127,10 @@ void test_fragment_event_large(void) {
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  key = 789;
+  uint64_t  id = 789;
   uint16_t  data_length = (3 * OPTIMAL_VALUE_SIZE) + 1;
   uint8_t   data[data_length];
-  Event     event = { key, data_length, data };
+  Event     event = { id, data_length, data };
 
   uint8_t   num_fragments = 4;
 
@@ -144,7 +150,7 @@ void test_fragment_event_large(void) {
   // Confirm correct state
   printf("\tmultiple fragments w/ leftover... ");
 
-  assert(f_event.key == key);
+  assert(f_event.id == id);
   assert(f_event.num_fragments == num_fragments);
   assert(f_event.header[0] == (num_fragments - 1));
   assert(f_event.header_length == 1);
@@ -157,12 +163,21 @@ void test_fragment_event_large(void) {
   printf(" PASSED\n");
 }
 
+void test_headers(void) {
+
+  printf("\nStarting event header tests...\n");
+
+  test_build_header();
+  test_read_header();
+
+  printf("Completed event header tests.\n");
+}
+
 void test_build_header(void) {
 
   uint8_t header[MAX_HEADER_SIZE] = { 0 };
   uint8_t header_length = 0;
 
-  printf("\nStarting event header tests...\n");
   printf("\tbuilding headers... ");
 
   // 0
@@ -178,33 +193,33 @@ void test_build_header(void) {
   // 128
   header_length = build_header(header, 128);
   assert(header_length == 2);
-  assert(header[0] == (EXTENDED_HEADER & 1));
+  assert(header[0] == (EXTENDED_HEADER | 1));
   assert(header[1] == 128);
 
   // 255
   header_length = build_header(header, 255);
   assert(header_length == 2);
-  assert(header[0] == (EXTENDED_HEADER & 1));
+  assert(header[0] == (EXTENDED_HEADER | 1));
   assert(header[1] == 255);
 
   // 256
   header_length = build_header(header, 256);
   assert(header_length == 3);
-  assert(header[0] == (EXTENDED_HEADER & 2));
+  assert(header[0] == (EXTENDED_HEADER | 2));
   assert(header[1] == 0);
   assert(header[2] == 1);
 
   // 65535
   header_length = build_header(header, 65535);
   assert(header_length == 3);
-  assert(header[0] == (EXTENDED_HEADER & 2));
+  assert(header[0] == (EXTENDED_HEADER | 2));
   assert(header[1] == 255);
   assert(header[2] == 255);
 
   // 65536
   header_length = build_header(header, 65536);
   assert(header_length == 4);
-  assert(header[0] == (EXTENDED_HEADER & 3));
+  assert(header[0] == (EXTENDED_HEADER | 3));
   assert(header[1] == 0);
   assert(header[2] == 0);
   assert(header[3] == 1);
@@ -212,19 +227,83 @@ void test_build_header(void) {
   // 16777215
   header_length = build_header(header, 16777215);
   assert(header_length == 4);
-  assert(header[0] == (EXTENDED_HEADER & 3));
+  assert(header[0] == (EXTENDED_HEADER | 3));
   assert(header[1] == 255);
   assert(header[2] == 255);
   assert(header[3] == 255);
 
-  // 16777216
+  // 16777216 <-- beyond current range of num fragments
   header_length = build_header(header, 16777216);
   assert(header_length == 4);
-  assert(header[0] == (EXTENDED_HEADER & 3));
+  assert(header[0] == (EXTENDED_HEADER | 3));
   assert(header[1] == 0);
   assert(header[2] == 0);
   assert(header[3] == 0);
 
   printf(" PASSED\n");
-  printf("Completed event header tests.\n");
+}
+
+void test_read_header(void) {
+
+  uint8_t  header[MAX_HEADER_SIZE] = { 0 };
+  uint8_t  header_length = 0;
+  uint32_t num_fragments;
+
+  printf("\treading headers... ");
+
+  // 0
+  build_header(header, 0);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 1);
+  assert(num_fragments == 0);
+
+  // 127
+  build_header(header, 127);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 1);
+  assert(num_fragments == 127);
+
+  // 128
+  build_header(header, 128);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 2);
+  assert(num_fragments == 128);
+
+  // 255
+  build_header(header, 255);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 2);
+  assert(num_fragments == 255);
+
+  // 256
+  build_header(header, 256);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 3);
+  assert(num_fragments == 256);
+
+  // 65535
+  build_header(header, 65535);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 3);
+  assert(num_fragments == 65535);
+
+  // 65536
+  build_header(header, 65536);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 4);
+  assert(num_fragments == 65536);
+
+  // 16777215
+  build_header(header, 16777215);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 4);
+  assert(num_fragments == 16777215);
+
+  // 16777216 <-- beyond current range of num fragments
+  build_header(header, 16777216);
+  header_length = read_header(header, &num_fragments);
+  assert(header_length == 4);
+  assert(num_fragments == 0);
+
+  printf(" PASSED\n");
 }
