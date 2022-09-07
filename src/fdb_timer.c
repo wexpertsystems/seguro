@@ -1,6 +1,6 @@
 //! @file fdb_timer.c
 //!
-//!
+//! Additions/modifications to fdb.c for performing timed benchmarks.
 
 #include <foundationdb/fdb_c.h>
 #include <stdio.h>
@@ -74,8 +74,8 @@ int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function
 
 int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
 
-  clock_t        *start_t = malloc(sizeof(clock_t));
   FDBTransaction *tx;
+  clock_t        *start_t;
   uint32_t        batch_filled = 0;
   uint32_t        frag_pos = 0;
   uint32_t        i = 0;
@@ -106,6 +106,7 @@ int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
     // Attempt to apply transaction when batch is filled
     if (batch_filled == fdb_batch_size) {
       // Start timer just before committing transaction
+      start_t = malloc(sizeof(clock_t));
       *start_t = clock();
 
       if (fdb_check_error(fdb_send_timed_transaction(tx, (FDBCallback)&write_callback, (void *)start_t))) goto tx_fail;
@@ -115,14 +116,12 @@ int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events) {
   }
 
   // Catch the final, non-full batch
+  start_t = malloc(sizeof(clock_t));
   *start_t = clock();
   if (fdb_check_error(fdb_send_timed_transaction(tx, (FDBCallback)&write_callback, (void *)start_t))) goto tx_fail;
 
   // Clean up the transaction
   fdb_transaction_destroy(tx);
-
-  // Clean up the timer
-  free((void *)start_t);
 
   // Success
   return 0;
@@ -156,9 +155,6 @@ int fdb_clear_timed_database(uint32_t num_events, uint32_t num_fragments) {
   // Clean up the transaction
   fdb_transaction_destroy(tx);
 
-  // Clean up settings
-  free((void *)settings);
-
   // Success
   return 0;
 
@@ -184,18 +180,24 @@ void write_callback(FDBFuture *future, void *param) {
   }
 
   timer.t_total += total_time;
+
+  // Clean up timer from callback, or else race condition
+  free(param);
 }
 
 void clear_callback(FDBFuture *future, void *param) {
 
   BenchmarkSettings *settings = (BenchmarkSettings *)param;
+  uint32_t           num_batches = (settings->num_events * settings->num_frags) / settings->batch_size;
 
   printf("Thread time to write events:     %.2f s\n", (timer.t_total / 1000.0));
   printf("Average time per event:          %.4f ms\n", (timer.t_total / settings->num_events));
   printf("Max batch time:                  %.4f ms\n", (1000.0 * timer.t_max / CLOCKS_PER_SEC));
-  printf("Avg batch time:                  %.4f ms\n",
-         (timer.t_total / (settings->num_events * settings->num_frags) * settings->batch_size));
+  printf("Avg batch time:                  %.4f ms\n", (timer.t_total / num_batches));
   printf("Min batch time:                  %.4f ms\n", (1000.0 * timer.t_min / CLOCKS_PER_SEC));
+
+  // Clean up settings from callback, or else race condition
+  free(param);
 
   reset_timer();
 }

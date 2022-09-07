@@ -137,7 +137,7 @@ void run_write_benchmark(DataConfig config) {
   // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
   // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
   // (10KB).
-  uint32_t batch_sizes[5] = { 1, 10, 100, 500, 900 };
+  uint32_t batch_sizes[5] = { 1, 10, 100, 500, 950 };
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
   uint16_t num_fragments = (event_size / OPTIMAL_VALUE_SIZE);
@@ -164,28 +164,36 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
   time_t start, end;
   clock_t c_start, c_end;
 
-//  // Data limited to 10 GB, 10 KB per fragment => 1,000,000 fragments
-//  // 1,000,000 / 10,000 = 100 => 100 progress bar ticks => each tick is 1%
-//  uint32_t progress_bar_fragments = 10000;
-//  uint32_t progress_bar_increment = (progress_bar_fragments / events[0].num_fragments);
+  // Data limited to 10 GB, 10 KB per fragment => 1,000,000 fragments
+  // 1,000,000 / 10,000 = 100 => 100 progress bar ticks => each tick is 1%
+  uint32_t progress_bar_fragments = 10000;
+  uint32_t progress_bar_increment = (progress_bar_fragments / events[0].num_fragments);
 
   printf("Running batch size %d benchmark...\n", batch_size);
 
   fdb_set_batch_size(batch_size);
 
-  // Write array of events in batches
+  // Write array of events in batches, and print a bar as a visual indicator of progress
   time(&start);
   c_start = clock();
-//  // Write array of events in batches, and print a bar as a visual indicator of progress
-//  for (uint32_t i = 0; i < num_events; i += progress_bar_increment) {
-//    err = fdb_write_event_array((events + i), progress_bar_increment);
-//    if (err) fatal_error();
-//
-//    printf(".");
-//    fflush(stdout);
-//  }
-//  printf("\n");
-  if (fdb_timed_write_event_array(events, num_events)) fatal_error();
+
+  for (uint32_t i = 0; i < 100; ++i) {
+    printf("[");
+    for (uint32_t j = 0; j <= i; ++j) {
+      printf(".");
+    }
+    for (uint32_t j = (i + 1); j < 100; ++j) {
+      printf(" ");
+    }
+    printf("]");
+    printf("\r");
+
+    fflush(stdout);
+
+    if (fdb_timed_write_event_array((events + (i * progress_bar_increment)), progress_bar_increment)) fatal_error();
+  }
+  printf("\n");
+
   c_end = clock();
   time(&end);
 

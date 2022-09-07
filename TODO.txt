@@ -10,7 +10,6 @@
   - 25 KB
   - 50 KB
   - 100 KB
-- Benchmarks for reading events
 - Test with real data from LMDB
 - Test with remote FoundationDB cluster
 - Test save-delete-load-launch with real pier

@@ -1,6 +1,6 @@
 //! @file fdb_timer.h
 //!
-//!
+//! Additions/modifications to fdb.h for performing timed benchmarks.
 
 #pragma once
 

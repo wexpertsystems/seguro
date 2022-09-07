@@ -1,6 +1,9 @@
 //! @file fdb.c
 //!
 //! Definitions for functions used to manage interaction with a FoundationDB cluster.
+//!
+//! Potentially helpful documentation:
+//!   https://stackoverflow.com/questions/50519331/how-does-foundationdb-handle-conflicting-transactions
 
 #include <foundationdb/fdb_c.h>
 #include <pthread.h>
