@@ -45,96 +45,93 @@ achieve event fragmentation, key/value pairs will be formatted like so:
 
 #### Keys/Values
 
-|           | encoding                      | format                                |
-| --------- | ----------------------------- | ------------------------------------- |
-| **key**   | ASCII string, null-terminated | `"<event id>:<fragment id>"`          |
-| **value** | raw bytes                     | `<fragment header><fragment payload>` |
+|           | encoding                                                                           | format                         |
+|-----------|------------------------------------------------------------------------------------|--------------------------------|
+| **key**   | `0x00` &#x7c; 64-bit event id (big-endian) &#x7c; 32-bit fragment id (big-endian)  | `0x00112233445566778899AABBCC` |
+| **value** | raw bytes starting at index `(i * <optimal fragment size>)` for fragment w/ id `i` | `0xdeadbeef...`                |
 
-`event id`s and `fragment id`s are both contiguous, non-negative integers.
+Notes:
+- `|` = concatenation
+- The event ID and fragment ID are both contiguous, non-negative integers
+- The optimal fragment size, as documented above, will almost certainly be
+  `10 KB` = `10,000 bytes`
+- The first fragment (fragment `0`) will have a slightly different encoding for
+  the value, as documented below
 
-#### Fragment Header
+#### Fragment 0
 
-`fragment header`s are raw byte strings with byte-widths determined by the total
-size of the event payload. By default, fragment headers have a byte-width of 4:
+The value of the first fragment of an event will be split into two parts that
+are concatenated: the "header" and the "payload".
 
-| byte | bucket     | format                           | example     |
-| ---- | ---------- | -------------------------------- | ----------- |
-| 0    | byte-width | overflow toggle bit, fragment id | `0000 0000` |
-| 1    |            | ASCII `':'` character            | `0011 1010` |
-| 2    | length     | total fragments                  | `0000 0001` |
-| 3    |            | ASCII `':'` character            | `0011 1010` |
+#### Fragment 0 Header
 
-The overflow toggle bit is the high bit of byte 0.
+The fragment header is used to record the total number of fragments for the
+event. This serves two functions: it allows the read algorithm to pre-allocate
+an appropriate amount of memory on the heap for an event after reading the
+first batch out of FDB, and `memcpy` data from FDB as it arrives in batches; it
+allows the read algorithm to verify that the number of fragments returned by FDB
+is the number of fragments expected.
 
-The default fragment header byte-width of 4 supports events which can be
-fragmented with 127 or less total fragments.
+The fragment header is a raw byte array with the following format:
 
-For events which require greater than 127 fragments to be stored, the overflow
-toggle bit is set to 1 and the low 7 bits are used to encode the fragment header
-byte-width instead of the `fragment id`. If those 7 bits encode a value of _x_
-bytes, the following _x_ bytes in the fragment header will contain the
-`fragment id`. Note that, no matter the value of the overflow toggle bit, the
-byte-width and length buckets _always_ have the same byte-widths. Thus, the
-total byte-width of any fragment header is _2x+2_, where _x_ is 1 when the
-overflow toggle bit or the encoded value of the low 7 bits when the overflow
-toggle bit is set to 1.
+**128 fragments or less**
 
-Let's see how the 255th fragment of an example event which requires 255
+| byte | meaning               | format          | example     |
+|------|-----------------------|-----------------|-------------|
+| 0    | *remaining* fragments | `<# fragments>` | `0111 1111` |
+
+**129 fragments or more**
+
+| byte | meaning                      | format                                             | example      |
+|------|------------------------------|----------------------------------------------------|--------------|
+| 0    | additional bytes             | `0x80` &#x7c;&#x7c; `<bytes to store # fragments>` | `1000 0010 ` |
+| 1..N | bytes encoding `# fragments` | `<# fragments>`                                    | `0001 0110 ` |
+
+Note: `||` = bitwise OR
+
+Let's see how the 257th fragment of an example event which requires 257
 fragments to be stored would look:
 
-| byte | bucket     | format                                 | example     |
-| ---- | ---------- | -------------------------------------- | ----------- |
-| 0    | byte-width | overflow toggle bit, bucket byte-width | `1000 0010` |
-| 1    | byte-width | fragment id                            | `1111 1111` |
-| 2    |            | ASCII `':'` character                  | `0011 1010` |
-| 3    | length     | total fragments                        | `0000 0000` |
-| 4    | length     | total fragments continued              | `1111 1111` |
-| 5    |            | ASCII `':'` character                  | `0011 1010` |
+| byte | bucket        | format                                 | example     |
+|------|---------------|----------------------------------------|-------------|
+| 0    | byte-width    | overflow toggle bit, bucket byte-width | `1000 0010` |
+| 1    | `# fragments` | remaining fragments (little endian)    | `0000 0000` |
+| 2    | `# fragments` |                                        | `0000 0001` |
 
-In this case, _x_ is 2, so the total byte-width of the fragment header is _2x+2
-= 2\*2+2 = 6_.
+Remember: the header encodes the number of **remaining** fragments. The total
+number of fragments is the number stored in the header plus 1, because there is
+always guaranteed to be a first fragment, so we can exclude it from counting.
 
-#### Fragment Payload
+#### Fragment 0 Payload
 
-The `fragment payload` is the raw bytes of the event, as encoded by `vere`,
-which are appended to the end of the fragment header byte string.
+The `fragment payload` is the raw bytes of the event, as encoded by `vere`.
+The likelihood of an event being equally divisible by the optimal FDB value size
+is very low. Naturally, this means that most fragmented events will have one
+fragment with an odd size. To keep value sizes as close to consistent as
+possible, we make the first fragment be the oddly sized one.
 
-The maximum size of each event's `fragment payload` is simply:
-
-```
-(maximum db value size) - (fragment header size)
-```
-
-For instance, if the `maximum db value size` is 10KB and the
-`fragment header size` for the given event is the default of 4 bytes, each
-fragment payload can hold up to 9,996 bytes.
-
-#### Fragmentation Tests
-
-Tests ensuring multi-fragment events are written and read correctly and without
-corruption must be included in this work.
-
-### Reads
-
-Single and batch reads must be supported, with the following function
-signatures, or similar:
-
-- `event read_event(int event_id);`
-- `event[] read_event_batch(int min_event_id, int max_event_id);`
+For example, if an event has size `10,001 bytes`, then the event will be split
+into `2` fragments. The first fragment will have size `2 bytes` (`1 byte` header +
+`1 byte` payload) and the second fragment will have size `10,000 bytes`
+(assuming the default FDB value size of `10 KB`).
 
 ### Writes
 
 Single transaction batch writes and multiple, simultaneous, asynchronous writes
-must be supported as well:
+must be supported. Additional requirements for writes include:
 
-- `int write_event_batch(event[]);`
-- `future write_event_async(event);`
-
-Additional requirements for writes include:
-
-- A benchmark determining which of the above perform best
+- A benchmark suite for determining which batch/value sizes work best
 - A brief analysis of pros/cons of integrating the two, based on whether the
   overall architecture is in- or out-of-process
+
+### Reads
+
+Single transaction and streaming batch reads must be supported.
+
+### Tests
+
+Tests ensuring multi-fragment events are written and read correctly and without
+corruption will be included in this work.
 
 ## Future Work
 
