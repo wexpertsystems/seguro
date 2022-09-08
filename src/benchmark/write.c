@@ -161,13 +161,9 @@ void run_write_benchmark(DataConfig config) {
 
 void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
 
-  time_t start, end;
-  clock_t c_start, c_end;
-
-  // Data limited to 10 GB, 10 KB per fragment => 1,000,000 fragments
-  // 1,000,000 / 10,000 = 100 => 100 progress bar ticks => each tick is 1%
-  uint32_t progress_bar_fragments = 10000;
-  uint32_t progress_bar_increment = (progress_bar_fragments / events[0].num_fragments);
+  time_t   start, end;
+  clock_t  c_start, c_end;
+  uint32_t progress_bar_increment = ((num_events * num_frags) / 100);
 
   printf("Running batch size %d benchmark...\n", batch_size);
 
