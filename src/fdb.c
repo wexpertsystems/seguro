@@ -271,6 +271,18 @@ int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events) {
   return -1;
 }
 
+// With range reads, it's possible to remove headers completely from stored event fragments. If the layout of a typical
+// Urbit event log is many, many very small events, then this could be a good way to save storage space. Alternatively,
+// the larger events are, the more inefficient and meaningless this idea becomes.
+//
+// Potential pros:
+//  - Save 13 bytes per event
+//
+// Potential cons:
+//  - Uses up to twice as much memory when reading back events
+//  - Might actually be more complicated, several concurrent processes fetching additional data from FDB and writing
+//    the data already available to the correct memory location
+//
 int fdb_read_event(Event *event) {
 
   FDBFuture         *future;
