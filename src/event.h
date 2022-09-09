@@ -1,64 +1,68 @@
-//! @file event.h
+//! @file events.h
 //!
-//! Events header file.
+//! Event struct definitions and declarations for functions which manage events.
 
-#ifndef EVENT_H
-#define EVENT_H
+#pragma once
 
-#include <math.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <time.h>
-
-#ifndef FDB_API_VERSION
-#define FDB_API_VERSION 710
 #include <foundationdb/fdb_c.h>
-#endif
+#include <stdint.h>
+
+#define EXTENDED_HEADER 0x80
+#define MAX_HEADER_SIZE 4
 
 
 //==============================================================================
 // Types
 //==============================================================================
 
-//! Raw event object (needs fragmentation before insertion into FoundationDB).
 typedef struct event_t {
-  uint8_t key;          //! Unsigned integer key.
-  char*   value;        //! Byte buffer value.
-  int     value_length; //! Length of the value's byte array.
+  uint64_t  id;           // Unique, ordered identifier for event
+  uint64_t  data_length;  // Length of event data in bytes
+  uint8_t  *data;         // Pointer to event data array
 } Event;
+
+typedef struct fragmented_event_t {
+  uint64_t   id;                      // Unique, ordered identifier for event
+  uint32_t   num_fragments;           // Number of fragments into which the event has been split
+  uint8_t    header[MAX_HEADER_SIZE]; // Header for first fragment which encodes the number of fragments
+  uint8_t    header_length;           // Length of header in bytes
+  uint16_t   payload_length;          // Length of data payload of first fragment
+  uint8_t  **fragments;               // Array of fragments as pointers into raw event data array
+} FragmentedEvent;
 
 //==============================================================================
 // Prototypes
 //==============================================================================
 
-//! Writes raw, non-fragmented, mock events into the given array.
+//! Split an event into one or more fragments. This is necessary for improved performance when writing to a database,
+//! or for the database to accept the event at all.
 //!
-//! @param[in] num_events  The number of events to write into an array in memory.
-//! @param[in] size        The size of each event, in bytes.
-//!
-//! @return       Events array.
-//! @return NULL  Failure.
-Event* load_mock_events(int num_events, int size);
+//! @param[in] event    The event to split into one or more fragments
+//! @param[in] f_event  Pointer to the fragmented event to setup using the input event
+void fragment_event(Event *event, FragmentedEvent *f_event);
 
-//! Reads events from LMDB and writes them into an array in memory.
+//! Create the header for a fragmented event, which stores the number of fragments of which an event is composed.
 //!
-//! @param[in] mdb_file    The .mdb file to read from.
-//! @param[in] num_events  The number of events to write into the event array.
-//! @param[in] size        The size of each event, in bytes.
+//! @param[in] header         Pointer to the byte array to which to output the header
+//! @param[in] num_fragments  The number of fragments that the header should encode
 //!
-//! @return       Events array.
-//! @return NULL  Failure.
-Event* load_lmdb_events(char* mdb_file, int num_events, int size);
+//! @return   The length of the header in bytes
+uint8_t build_header(uint8_t *header, uint32_t num_fragments);
 
-//! Counts the number of digits in the given integer.
+//! Read the total number of fragments for an event from the header.
 //!
-//! @param[in] n  The integer.
+//! @param[in] header         Handle for the header
+//! @param[in] num_fragments  Handle for location to which to write the number of fragments
 //!
-//! @return  The number of digits.
-int count_digits(int n);
+//! @return   The length of the header in bytes
+uint8_t read_header(const uint8_t *header, uint32_t *num_fragments);
 
-#endif
+//! Deallocate the heap memory used by an event.
+//!
+//! @param[in] event  The event to deallocate
+void free_event(Event *event);
+
+//! Deallocate the heap memory used by a fragmented event.
+//!
+//! @param[in] event  The fragmented event to deallocate
+void free_fragmented_event(FragmentedEvent *event);
