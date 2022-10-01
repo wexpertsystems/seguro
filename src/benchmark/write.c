@@ -76,6 +76,15 @@ void fatal_error(void);
 //! @return 0   Failure
 uint32_t parse_pos_int(char const *str);
 
+//! Count the number of total fragments in an array of fragmented events.
+//!
+//!
+//! @param[in]  events      Pointer to the array of FragmentedEvent objects.
+//! @param[in]  num_events  Number of events in the array.
+//!
+//! @return  Number of total fragments.
+uint32_t total_fragments(FragmentedEvent *events, uint32_t num_events);
+
 //==============================================================================
 // Functions
 //==============================================================================
@@ -113,16 +122,16 @@ void run_benchmarks(void) {
 
   printf("Running default benchmarks...\n");
 
-  // Limit amount of data written to local cluster at one time to 10 GB
-  DataConfig configs[5] = {
-    { 1000000, 1 * OPTIMAL_VALUE_SIZE },
-    { 100000, 10 * OPTIMAL_VALUE_SIZE },
-    { 10000, 100 * OPTIMAL_VALUE_SIZE },
-    { 4000, 250 * OPTIMAL_VALUE_SIZE },
-    { 1000, 1000 * OPTIMAL_VALUE_SIZE }
+  int num_configs = 1;
+  DataConfig configs[] = {
+    // n     , size (bytes)
+    { 1000   , 1000 },
+    // { 10000  , 10   },
+    // { 10000  , 100  },
+    // { 100000 , 1000 },
   };
 
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < num_configs; ++i) {
     run_write_benchmark(configs[i]);
   }
 
@@ -137,18 +146,19 @@ void run_write_benchmark(DataConfig config) {
   // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
   // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
   // (10KB).
-  uint32_t batch_sizes[5] = { 1, 10, 100, 500, 950 };
+  uint32_t batch_sizes[] = { 1, 10, 100, 500, 950 };
+  uint32_t num_bs = 5;
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
-  uint16_t num_fragments = (event_size / OPTIMAL_VALUE_SIZE);
+  uint16_t num_fragments = (uint16_t) ceil((double) event_size / (double) OPTIMAL_VALUE_SIZE);
 
-  printf("\nRunning write benchmarks for %d-fragment events...\n", num_fragments);
+  printf("\nRunning write benchmarks for %u-fragment events...\n\n", num_fragments);
 
   // Generate mock events
   load_mock_events(&raw_events, &events, num_events, event_size);
 
   // Array batch writes for each batch size
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < num_bs; ++i) {
     timed_array_write(events, num_events, num_fragments, batch_sizes[i]);
   }
 
@@ -156,7 +166,7 @@ void run_write_benchmark(DataConfig config) {
   release_events_memory(raw_events, events, num_events);
 
   // Success
-  printf("Write benchmarks for %d-fragment events complete.\n", num_fragments);
+  printf("\nWrite benchmarks for %d-fragment events complete.\n", num_fragments);
 }
 
 void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
@@ -174,21 +184,24 @@ void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t nu
   c_start = clock();
 
   for (uint32_t i = 0; i < 100; ++i) {
-    printf("[");
-    for (uint32_t j = 0; j <= i; ++j) {
-      printf(".");
-    }
-    for (uint32_t j = (i + 1); j < 100; ++j) {
-      printf(" ");
-    }
-    printf("]");
-    printf("\r");
+    // printf("[");
+    // for (uint32_t j = 0; j <= i; ++j) {
+    //   printf(".");
+    // }
+    // for (uint32_t j = (i + 1); j < 100; ++j) {
+    //   printf(" ");
+    // }
+    // printf("]");
+    // printf("\r");
 
-    fflush(stdout);
+    // fflush(stdout);
 
-    if (fdb_timed_write_event_array((events + (i * progress_bar_increment)), progress_bar_increment)) fatal_error();
+    // if (fdb_timed_write_event_array((events + (i * progress_bar_increment)), progress_bar_increment)) fatal_error();
   }
   printf("\n");
+
+  int error = fdb_timed_write_event_array_async(events, num_events);
+  if (error) fatal_error();
 
   c_end = clock();
   time(&end);
@@ -273,4 +286,12 @@ uint32_t parse_pos_int(char const *str) {
   }
 
   return (uint32_t)parsed_num;
+}
+
+uint32_t total_fragments(FragmentedEvent *events, uint32_t num_events) {
+  uint32_t sum = 0;
+  for (uint32_t i = 0; i < num_events; i++) {
+    sum += events[i].num_fragments;
+  }
+  return sum;
 }
