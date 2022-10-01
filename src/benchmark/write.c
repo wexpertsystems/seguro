@@ -122,13 +122,13 @@ void run_benchmarks(void) {
 
   printf("Running default benchmarks...\n");
 
-  int num_configs = 1;
+  int num_configs = 4;
   DataConfig configs[] = {
     // n     , size (bytes)
-    { 1000   , 1000 },
-    // { 10000  , 10   },
-    // { 10000  , 100  },
-    // { 100000 , 1000 },
+    { 1000   , 1    },
+    { 10000  , 10   },
+    { 10000  , 100  },
+    { 100000 , 1000 },
   };
 
   for (uint8_t i = 0; i < num_configs; ++i) {
@@ -252,6 +252,27 @@ void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_e
 
   // Success
   printf("Fragmented mock events.\n");
+}
+
+void load_lmdb_events(Event **events, FragmentedEvent **f_events, uint32_t num_events, uint32_t size) {
+  printf("Loading %u %u-byte events from LMDB...\n", num_events, size);
+
+  // Allocate memory for events
+  *events = (Event *) malloc(sizeof(Event) * num_events);
+
+  // TODO
+
+  printf("Loading events from LMDB complete.\n");
+  printf("Fragmenting mock events...\n");
+
+  // Fragment events
+  *f_events = (FragmentedEvent *) malloc(sizeof(FragmentedEvent) * num_events);
+  for (uint32_t i = 0; i < num_events; ++i) {
+    fragment_event((*events + i), (*f_events + i));
+  }
+
+  // Success
+  printf("Fragmented events from LMDB.\n");
 }
 
 void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events) {
