@@ -74,15 +74,12 @@ void fdb_init_database(void) {
   }
 
   // Ensure correct FDB API version
-  printf("Ensuring correct API version...\n");
   check_error_bail(fdb_select_api_version(FDB_API_VERSION));
 
   // Setup FDB network
-  printf("Setting up network...\n");
   check_error_bail(fdb_setup_network());
 
   // Create the database
-  printf("Creating the database...\n");
   check_error_bail(fdb_create_database((char *) cluster_file_path, &fdb_database));
 }
 
@@ -115,8 +112,6 @@ int fdb_shutdown_network_thread(void) {
     perror("pthread_join() error");
     return -1;
   }
-
-  printf("Successfully shutdown network thread.\n");
 
   // Success
   return 0;
@@ -487,11 +482,7 @@ fdb_error_t fdb_check_error(fdb_error_t err) {
 }
 
 void *network_thread_func(void *arg) {
-
-  printf("Starting network thread...\n");
-
   if (fdb_check_error(fdb_run_network())) return NULL;
-
   return NULL;
 }
 

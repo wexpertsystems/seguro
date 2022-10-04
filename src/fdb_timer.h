@@ -29,6 +29,10 @@ typedef struct fdb_callback_data_t {
   clock_t        *start_t;
   FDBTransaction *tx;
   uint32_t       *txs_processing;
+  FDBTimer       *timer;
+  uint32_t       num_events;
+  uint32_t       num_frags;
+  uint32_t       batch_size;
 } FDBCallbackData;
 
 //==============================================================================
@@ -45,7 +49,7 @@ typedef struct fdb_callback_data_t {
 //! @return -1  Failure
 int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function, void *callback_param);
 
-//! Write an array of fragmented events and timed the process.
+//! Write an array of fragmented events and time the process.
 //!
 //! @param[in] events       Handle for the array of events to write
 //! @param[in] num_events   Number of events in the array
@@ -54,17 +58,17 @@ int fdb_send_timed_transaction(FDBTransaction *tx, FDBCallback callback_function
 //! @return -1  Failure
 int fdb_timed_write_event_array(FragmentedEvent *events, uint32_t num_events);
 
-//! Asynchronously write an array of fragmented events and timed the process.
+//! Asynchronously write an array of fragmented events and time the process.
 //!
 //! @param[in] events          Handle for the array of events to write
 //! @param[in] num_events      Number of events in the array
-//! @param[in] txs_processing  Pointer to counter of currently processing txs
 //!
-//! @return  0  Success
-//! @return -1  Failure
+//! @return  0  Success.
+//! @return -1  Failure.
 int fdb_timed_write_event_array_async(FragmentedEvent *events, uint32_t num_events);
 
 int fdb_clear_timed_database(uint32_t num_events, uint32_t num_fragments);
+int fdb_clear_timed_database_async(uint32_t num_events, uint32_t num_fragments);
 
 //==============================================================================
 // External Prototypes
