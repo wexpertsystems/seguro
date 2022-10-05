@@ -79,3 +79,14 @@ sudo systemctl start foundationdb
 fdbcli
 configure new single ssd
 ```
+
+## TODOs
+
+- [ ] Read benchmarks
+  - [ ] Time different FDB range-read streaming modes?
+- [ ] Test with real data from LMDB
+- [ ] Test with remote FoundationDB cluster
+- [ ] Test save-delete-load-launch with real pier
+- [ ] Apply good C practices: https://github.com/mcinglis/c-style
+- [ ] Profile with valgrind
+- [ ] Add FDB Tenant support
