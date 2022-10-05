@@ -1,6 +1,6 @@
-//! @file fdb_timer.c
-//!
-//! Additions/modifications to fdb.c for performing timed benchmarks.
+/// @file fdb_timer.c
+///
+/// Additions/modifications to fdb.c for performing timed benchmarks.
 
 #include <foundationdb/fdb_c.h>
 #include <math.h>
@@ -23,41 +23,41 @@ thread_local FDBTimer timer_sync = {(clock_t)INT_MAX, (clock_t)0, 0.0};
 // Prototypes
 //==============================================================================
 
-//! Callback function for when an asynchronous FoundationDB transaction is
-//! applied successfully.
-//!
-//! @param[in] future   Handle for the FoundationDB future.
-//! @param[in] t_start  Contains the time at which the tx was launched.
+/// Callback function for when an asynchronous FoundationDB transaction is
+/// applied successfully.
+///
+/// @param[in] future   Handle for the FoundationDB future.
+/// @param[in] t_start  Contains the time at which the tx was launched.
 void write_callback(FDBFuture *future, void *t_start);
 
-//! Callback function for when an asynchronous FoundationDB transaction is
-//! applied successfully.
-//!
-//! @param[in] future  Handle for the FoundationDB future.
-//! @param[in] cbd     Handle for an FDBCallbackData object.
+/// Callback function for when an asynchronous FoundationDB transaction is
+/// applied successfully.
+///
+/// @param[in] future  Handle for the FoundationDB future.
+/// @param[in] cbd     Handle for an FDBCallbackData object.
 void write_callback_async(FDBFuture *future, void *cbd);
 
-//! Callback function for when the FoundationDB database is cleared.
-//!
-//! @param[in] future    Handle for the FoundationDB future.
-//! @param[in] settings  Handle for the BenchmarkSettings object.
+/// Callback function for when the FoundationDB database is cleared.
+///
+/// @param[in] future    Handle for the FoundationDB future.
+/// @param[in] settings  Handle for the BenchmarkSettings object.
 void clear_callback(FDBFuture *future, void *settings);
 
-//! Callback function for clearing the database after asynchronous writes.
-//!
-//! @param[in] future    Handle for the FoundationDB future
-//! @param[in] settings  Handle for the BenchmarkSettings object.
+/// Callback function for clearing the database after asynchronous writes.
+///
+/// @param[in] future    Handle for the FoundationDB future
+/// @param[in] settings  Handle for the BenchmarkSettings object.
 void clear_callback_async(FDBFuture *future, void *settings);
 
-//! Resets the global benchmark timer.
+/// Resets the global benchmark timer.
 void reset_timer(void);
 
-//! Count the number of total fragments in an array of fragmented events.
-//!
-//! @param[in]  events      Pointer to the array of FragmentedEvent objects.
-//! @param[in]  num_events  Number of events in the array.
-//!
-//! @return  Number of total fragments.
+/// Count the number of total fragments in an array of fragmented events.
+///
+/// @param[in]  events      Pointer to the array of FragmentedEvent objects.
+/// @param[in]  num_events  Number of events in the array.
+///
+/// @return  Number of total fragments.
 uint32_t total_fragments(FragmentedEvent *events, uint32_t num_events);
 
 //==============================================================================

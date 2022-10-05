@@ -1,10 +1,10 @@
-//! @file fdb.c
-//!
-//! Definitions for functions used to manage interaction with a FoundationDB
-//! cluster.
-//!
-//! Potentially helpful documentation:
-//!   https://stackoverflow.com/questions/50519331/how-does-foundationdb-handle-conflicting-transactions
+/// @file fdb.c
+///
+/// Definitions for functions used to manage interaction with a FoundationDB
+/// cluster.
+///
+/// Potentially helpful documentation:
+///   https://stackoverflow.com/questions/50519331/how-does-foundationdb-handle-conflicting-transactions
 
 #include <foundationdb/fdb_c.h>
 #include <pthread.h>
@@ -34,33 +34,33 @@ uint32_t fdb_batch_size = 1;
 // Prototypes
 //==============================================================================
 
-//! Network loop function for handling interactions with a FoundationDB cluster
-//! in a separate process.
+/// Network loop function for handling interactions with a FoundationDB cluster
+/// in a separate process.
 void *network_thread_func(void *arg);
 
-//! Add a limited number of write operations for the fragments of an event to a
-//! FoundationDB transaction.
-//!
-//! @param[in] tx         FoundationDB transaction handle.
-//! @param[in] event      Fragmented event handle.
-//! @param[in] start_pos  Starting position in fragment array to write from.
-//! @param[in] limit      Absolute limit on the number of fragments to write.
-//!
-//! @return   Number of event fragments added to transaction.
+/// Add a limited number of write operations for the fragments of an event to a
+/// FoundationDB transaction.
+///
+/// @param[in] tx         FoundationDB transaction handle.
+/// @param[in] event      Fragmented event handle.
+/// @param[in] start_pos  Starting position in fragment array to write from.
+/// @param[in] limit      Absolute limit on the number of fragments to write.
+///
+/// @return   Number of event fragments added to transaction.
 uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event,
                                     uint32_t start_pos, uint32_t limit);
 
-//! Add a clear operation for all fragments of an event to a FoundationDB
-//! transaction.
-//!
-//! @param[in] tx     FoundationDB transaction handle.
-//! @param[in] event  Fragmented event handle.
+/// Add a clear operation for all fragments of an event to a FoundationDB
+/// transaction.
+///
+/// @param[in] tx     FoundationDB transaction handle.
+/// @param[in] event  Fragmented event handle.
 void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event);
 
-//! Check if a FoundationDB API command returned an error. If so, print the
-//! error description and exit.
-//!
-//! @param[in] err  FoundationDB error code.
+/// Check if a FoundationDB API command returned an error. If so, print the
+/// error description and exit.
+///
+/// @param[in] err  FoundationDB error code.
 void check_error_bail(fdb_error_t err);
 
 //==============================================================================

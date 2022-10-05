@@ -1,6 +1,6 @@
-//! @file integ.c
-//!
-//! Integration tests for Seguro
+/// @file integ.c
+///
+/// Integration tests for Seguro
 
 #include <assert.h>
 #include <limits.h>
@@ -18,76 +18,76 @@
 // Prototypes
 //==============================================================================
 
-//! Test that data can be written to a FoundationDB cluster through the C API.
+/// Test that data can be written to a FoundationDB cluster through the C API.
 void test_write_to_fdb(void);
 
-//! Test that data can be cleared from a FoundationDB cluster through the C API.
+/// Test that data can be cleared from a FoundationDB cluster through the C API.
 void test_clear_from_fdb(void);
 
-//! Test that a single event can be cleared from a FoundationDB cluster in its
-//! entirety.
+/// Test that a single event can be cleared from a FoundationDB cluster in its
+/// entirety.
 void test_clear_event(void);
 
-//! Test that an array of events can be cleared from a FoundationDB cluster in
-//! their entirety.
+/// Test that an array of events can be cleared from a FoundationDB cluster in
+/// their entirety.
 void test_clear_event_array(void);
 
-//! Test that all data can be cleared from a FoundationDB cluster in a single
-//! transaction.
+/// Test that all data can be cleared from a FoundationDB cluster in a single
+/// transaction.
 void test_clear_database(void);
 
-//! Test that a portion of an event the size of one batch can be written to a
-//! FoundationDB cluster.
+/// Test that a portion of an event the size of one batch can be written to a
+/// FoundationDB cluster.
 void test_write_batch(void);
 
-//! Test that an event can be written to a FoundationDB cluster in its entirety.
+/// Test that an event can be written to a FoundationDB cluster in its entirety.
 void test_write_event(void);
 
-//! Test that an array of events can be written to a FoundationDB cluster in
-//! their entirety.
+/// Test that an array of events can be written to a FoundationDB cluster in
+/// their entirety.
 void test_write_event_array(void);
 
-//! Test that an event can be read from a FoundationDB cluster in its entirety.
+/// Test that an event can be read from a FoundationDB cluster in its entirety.
 void test_read_event(void);
 
-//! Generate random, fake data for simulating events.
-//!
-//! @param[in] size   Number of bytes of data to generate.
-//!
-//! @return   Handle to array of generated data.
+/// Generate random, fake data for simulating events.
+///
+/// @param[in] size   Number of bytes of data to generate.
+///
+/// @return   Handle to array of generated data.
 uint8_t *generate_dummy_data(uint64_t size);
 
-//! Count the number of keys stored in the FoundationDB cluster referenced by a
-//! FDBTransaction.
-//!
-//! @param[in] tx   Handle to a FoundationDB transaction.
-//!
-//! @return   Number of keys stored in the FoundationDB cluster.
+/// Count the number of keys stored in the FoundationDB cluster referenced by a
+/// FDBTransaction.
+///
+/// @param[in] tx   Handle to a FoundationDB transaction.
+///
+/// @return   Number of keys stored in the FoundationDB cluster.
 uint32_t count_keys_in_database(FDBTransaction *tx);
 
-//! Count the number of keys stored for a particular event in the FoundationDB
-//! cluster referenced by a FDBTransaction.
-//!
-//! @param[in] tx   Handle to a FoundationDB transaction.
-//!
-//! @return   Number of event keys stored in the FoundationDB cluster.
+/// Count the number of keys stored for a particular event in the FoundationDB
+/// cluster referenced by a FDBTransaction.
+///
+/// @param[in] tx   Handle to a FoundationDB transaction.
+///
+/// @return   Number of event keys stored in the FoundationDB cluster.
 uint32_t count_event_fragments_in_database(FDBTransaction *tx,
                                            uint64_t event_id);
 
-//! Gracefully fail a test by cleaning up before exiting.
+/// Gracefully fail a test by cleaning up before exiting.
 void fail_test(void);
 
 //==============================================================================
 // Functions
 //=============================================================================
 
-//! Execute the Seguro integration tests.
-//!
-//! @param[in] argc  Number of command-line options provided
-//! @param[in] argv  Array of command-line options provided
-//!
-//! @return  0  Success
-//! @return -1  Failure
+/// Execute the Seguro integration tests.
+///
+/// @param[in] argc  Number of command-line options provided
+/// @param[in] argv  Array of command-line options provided
+///
+/// @return  0  Success
+/// @return -1  Failure
 int main(int argc, char **argv) {
   printf("Starting integration tests...\n");
 

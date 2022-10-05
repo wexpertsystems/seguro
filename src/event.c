@@ -1,6 +1,6 @@
-//! @file events.c
-//!
-//! Definitions for functions which manage events.
+/// @file events.c
+///
+/// Definitions for functions which manage events.
 
 #include <stdint.h>
 #include <stdio.h>

@@ -1,6 +1,6 @@
-//! @file test.c
-//!
-//! Unit tests for Seguro
+/// @file test.c
+///
+/// Unit tests for Seguro
 
 #include <assert.h>
 #include <stdint.h>
@@ -14,39 +14,39 @@
 // Prototypes
 //==============================================================================
 
-//! Test splitting events into one or more fragments.
+/// Test splitting events into one or more fragments.
 void test_fragment_event(void);
 
-//! Test fragmentation for a 1-byte event.
+/// Test fragmentation for a 1-byte event.
 void test_fragment_event_trivial(void);
 
-//! Test fragmentation for the largest single-fragment event.
+/// Test fragmentation for the largest single-fragment event.
 void test_fragment_event_small(void);
 
-//! Test fragmentation for an event with multiple fragments and an odd-sized
-//! leftover payload.
+/// Test fragmentation for an event with multiple fragments and an odd-sized
+/// leftover payload.
 void test_fragment_event_large(void);
 
-//! Test building/reading headers.
+/// Test building/reading headers.
 void test_headers(void);
 
-//! Test fragmented event header construction.
+/// Test fragmented event header construction.
 void test_build_header(void);
 
-//! Test reading information from event headers.
+/// Test reading information from event headers.
 void test_read_header(void);
 
 //==============================================================================
 // Functions
 //=============================================================================
 
-//! Execute the Seguro unit tests.
-//!
-//! @param[in] argc  Number of command-line options provided.
-//! @param[in] argv  Array of command-line options provided.
-//!
-//! @return  0  Success.
-//! @return -1  Failure.
+/// Execute the Seguro unit tests.
+///
+/// @param[in] argc  Number of command-line options provided.
+/// @param[in] argv  Array of command-line options provided.
+///
+/// @return  0  Success.
+/// @return -1  Failure.
 int main(int argc, char **argv) {
   printf("Starting unit tests...\n");
 

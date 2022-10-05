@@ -1,6 +1,6 @@
-//! @file events.h
-//!
-//! Event struct definitions and declarations for functions which manage events.
+/// @file events.h
+///
+/// Event struct definitions and declarations for functions which manage events.
 
 #pragma once
 
@@ -35,37 +35,37 @@ typedef struct fragmented_event_t {
 // Prototypes
 //==============================================================================
 
-//! Split an event into one or more fragments. This is necessary for improved
-//! performance when writing to a database, or for the database to accept the
-//! event at all.
-//!
-//! @param[in] event    The event to split into one or more fragments.
-//! @param[in] f_event  Pointer to the FragmentedEvent object to write into.
+/// Split an event into one or more fragments. This is necessary for improved
+/// performance when writing to a database, or for the database to accept the
+/// event at all.
+///
+/// @param[in] event    The event to split into one or more fragments.
+/// @param[in] f_event  Pointer to the FragmentedEvent object to write into.
 void fragment_event(Event *event, FragmentedEvent *f_event);
 
-//! Create the header for a fragmented event, which stores the number of
-//! fragments of which an event is composed.
-//!
-//! @param[in] header         Pointer to the byte[] to output the header.
-//! @param[in] num_fragments  Number of fragments to encode in the header.
-//!
-//! @return   The length of the header in bytes.
+/// Create the header for a fragmented event, which stores the number of
+/// fragments of which an event is composed.
+///
+/// @param[in] header         Pointer to the byte[] to output the header.
+/// @param[in] num_fragments  Number of fragments to encode in the header.
+///
+/// @return   The length of the header in bytes.
 uint8_t build_header(uint8_t *header, uint32_t num_fragments);
 
-//! Read the total number of fragments for an event from the header.
-//!
-//! @param[in] header         Handle for the header.
-//! @param[in] num_fragments  Address to write the number of fragments into.
-//!
-//! @return   The length of the header in bytes
+/// Read the total number of fragments for an event from the header.
+///
+/// @param[in] header         Handle for the header.
+/// @param[in] num_fragments  Address to write the number of fragments into.
+///
+/// @return   The length of the header in bytes
 uint8_t read_header(const uint8_t *header, uint32_t *num_fragments);
 
-//! Deallocate the heap memory used by an event.
-//!
-//! @param[in] event  The event to deallocate.
+/// Deallocate the heap memory used by an event.
+///
+/// @param[in] event  The event to deallocate.
 void free_event(Event *event);
 
-//! Deallocate the heap memory used by a fragmented event.
-//!
-//! @param[in] event  The fragmented event to deallocate.
+/// Deallocate the heap memory used by a fragmented event.
+///
+/// @param[in] event  The fragmented event to deallocate.
 void free_fragmented_event(FragmentedEvent *event);

@@ -1,11 +1,11 @@
-//! @file benchmark.c
-//!
-//! Write benchmark suite for Seguro Phase 2.
-//!
-//! Documentation links:
-//!   https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
-//!   https://linux.die.net/man/3/getopt_long
-//!   https://apple.github.io/foundationdb/benchmarking.html
+/// @file benchmark.c
+///
+/// Write benchmark suite for Seguro Phase 2.
+///
+/// Documentation links:
+///   https://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
+///   https://linux.die.net/man/3/getopt_long
+///   https://apple.github.io/foundationdb/benchmarking.html
 
 #include <foundationdb/fdb_c.h>
 #include <limits.h>
@@ -34,80 +34,80 @@ typedef struct data_config_t {
 // Prototypes
 //==============================================================================
 
-//! Run the default benchmarking suite for Seguro.
+/// Run the default benchmarking suite for Seguro.
 void run_benchmarks(void);
 
-//! Run the default event write benchmarks.
-//!
-//! @param[in] config   Configuration settings for the benchmark test.
+/// Run the default event write benchmarks.
+///
+/// @param[in] config   Configuration settings for the benchmark test.
 void run_write_benchmark(DataConfig config);
 
-//! Run the default asynchronous write benchmarks.
-//!
-//! @param[in] config   Configuration settings for the benchmark test.
+/// Run the default asynchronous write benchmarks.
+///
+/// @param[in] config   Configuration settings for the benchmark test.
 void run_write_benchmark_async(DataConfig config);
 
-//! Write an array of events to a FoundationDB cluster and time the process.
-//!
-//! TODO: Implement for dynamic number of fragments per event.
-//!
-//! @param[in] events       Array of events to write.
-//! @param[in] num_events   Number of events in array.
-//! @param[in] num_frags    Number of fragments per event.
-//! @param[in] batch_size   Batch size of writes per FoundationDB transaction.
+/// Write an array of events to a FoundationDB cluster and time the process.
+///
+/// TODO: Implement for dynamic number of fragments per event.
+///
+/// @param[in] events       Array of events to write.
+/// @param[in] num_events   Number of events in array.
+/// @param[in] num_frags    Number of fragments per event.
+/// @param[in] batch_size   Batch size of writes per FoundationDB transaction.
 void timed_array_write(FragmentedEvent *events, uint32_t num_events,
                        uint32_t num_frags, uint32_t batch_size);
 
-//! Write an array of events to a FoundationDB cluster and time the process.
-//!
-//! TODO: Implement for dynamic number of fragments per event.
-//!
-//! @param[in] events       Array of events to write.
-//! @param[in] num_events   Number of events in array.
-//! @param[in] num_frags    Number of fragments per event.
-//! @param[in] batch_size   Batch size of writes per FoundationDB transaction.
+/// Write an array of events to a FoundationDB cluster and time the process.
+///
+/// TODO: Implement for dynamic number of fragments per event.
+///
+/// @param[in] events       Array of events to write.
+/// @param[in] num_events   Number of events in array.
+/// @param[in] num_frags    Number of fragments per event.
+/// @param[in] batch_size   Batch size of writes per FoundationDB transaction.
 void timed_array_write_async(FragmentedEvent *events, uint32_t num_events,
                              uint32_t num_frags, uint32_t batch_size);
 
-//! Generate an array of mock events and fragment them.
-//!
-//! @param[in] events       Handle for an array of events.
-//! @param[in] f_events     Handle for an array of fragmented events.
-//! @param[in] num_events   Number of events in array.
-//! @param[in] size         The size of each event, in bytes.
+/// Generate an array of mock events and fragment them.
+///
+/// @param[in] events       Handle for an array of events.
+/// @param[in] f_events     Handle for an array of fragmented events.
+/// @param[in] num_events   Number of events in array.
+/// @param[in] size         The size of each event, in bytes.
 void load_mock_events(Event **events, FragmentedEvent **f_events,
                       uint32_t num_events, uint32_t size);
 
-//! Releases memory allocated for mock events.
-//!
-//! @param[in] events       Array of raw events to free.
-//! @param[in] f_events     Array of fragmented events to free.
-//! @param[in] num_events   Number of events in arrays.
+/// Releases memory allocated for mock events.
+///
+/// @param[in] events       Array of raw events to free.
+/// @param[in] f_events     Array of fragmented events to free.
+/// @param[in] num_events   Number of events in arrays.
 void release_events_memory(Event *events, FragmentedEvent *f_events,
                            uint32_t num_events);
 
-//! Print that a fatal error occurred and exit.
+/// Print that a fatal error occurred and exit.
 void fatal_error(void);
 
-//! Parse a positive integer from a string.
-//!
-//! @param[in] str  The string to parse..
-//!
-//! @return     A positive integer.
-//! @return 0   Failure.
+/// Parse a positive integer from a string.
+///
+/// @param[in] str  The string to parse..
+///
+/// @return     A positive integer.
+/// @return 0   Failure.
 uint32_t parse_pos_int(char const *str);
 
 //==============================================================================
 // Functions
 //==============================================================================
 
-//! Execute the Seguro write benchmark suite.
-//!
-//! @param[in] argc  Number of command-line options provided.
-//! @param[in] argv  Array of command-line options provided.
-//!
-//! @return  0  Success
-//! @return -1  Failure (error occurred)
+/// Execute the Seguro write benchmark suite.
+///
+/// @param[in] argc  Number of command-line options provided.
+/// @param[in] argv  Array of command-line options provided.
+///
+/// @return  0  Success
+/// @return -1  Failure (error occurred)
 int main(int argc, char **argv) {
   // Initialize FoundationDB database
   fdb_init_database();
