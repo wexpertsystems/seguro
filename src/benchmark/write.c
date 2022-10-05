@@ -11,8 +11,8 @@
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -20,7 +20,6 @@
 #include "../event.h"
 #include "../fdb.h"
 #include "../fdb_timer.h"
-
 
 //==============================================================================
 // Types
@@ -40,54 +39,62 @@ void run_benchmarks(void);
 
 //! Run the default event write benchmarks.
 //!
-//! @param[in] config   Configuration settings for the benchmark test
+//! @param[in] config   Configuration settings for the benchmark test.
 void run_write_benchmark(DataConfig config);
 
-//! Run the default event async write benchmarks.
+//! Run the default asynchronous write benchmarks.
 //!
-//! @param[in] config   Configuration settings for the benchmark test
+//! @param[in] config   Configuration settings for the benchmark test.
 void run_write_benchmark_async(DataConfig config);
 
 //! Write an array of events to a FoundationDB cluster and time the process.
 //!
-//! @param[in] events       Array of events to write
-//! @param[in] num_events   Number of events in array
-//! @param[in] num_frags    Number of fragments per event
-//! @param[in] batch_size   Batch size of writes per FoundationDB transaction
-void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size);
+//! TODO: Implement for dynamic number of fragments per event.
+//!
+//! @param[in] events       Array of events to write.
+//! @param[in] num_events   Number of events in array.
+//! @param[in] num_frags    Number of fragments per event.
+//! @param[in] batch_size   Batch size of writes per FoundationDB transaction.
+void timed_array_write(FragmentedEvent *events, uint32_t num_events,
+                       uint32_t num_frags, uint32_t batch_size);
 
 //! Write an array of events to a FoundationDB cluster and time the process.
 //!
-//! @param[in] events       Array of events to write
-//! @param[in] num_events   Number of events in array
-//! @param[in] num_frags    Number of fragments per event
-//! @param[in] batch_size   Batch size of writes per FoundationDB transaction
-void timed_array_write_async(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size);
+//! TODO: Implement for dynamic number of fragments per event.
+//!
+//! @param[in] events       Array of events to write.
+//! @param[in] num_events   Number of events in array.
+//! @param[in] num_frags    Number of fragments per event.
+//! @param[in] batch_size   Batch size of writes per FoundationDB transaction.
+void timed_array_write_async(FragmentedEvent *events, uint32_t num_events,
+                             uint32_t num_frags, uint32_t batch_size);
 
 //! Generate an array of mock events and fragment them.
 //!
-//! @param[in] events       Handle for an array of events
-//! @param[in] f_events     Handle for an array of fragmented events
-//! @param[in] num_events   Number of events in array
-//! @param[in] size         The size of each event, in bytes
-void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_events, uint32_t size);
+//! @param[in] events       Handle for an array of events.
+//! @param[in] f_events     Handle for an array of fragmented events.
+//! @param[in] num_events   Number of events in array.
+//! @param[in] size         The size of each event, in bytes.
+void load_mock_events(Event **events, FragmentedEvent **f_events,
+                      uint32_t num_events, uint32_t size);
 
 //! Releases memory allocated for mock events.
 //!
-//! @param[in] events       Array of raw events to free
-//! @param[in] f_events     Array of fragmented events to free
-//! @param[in] num_events   Number of events in arrays
-void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events);
+//! @param[in] events       Array of raw events to free.
+//! @param[in] f_events     Array of fragmented events to free.
+//! @param[in] num_events   Number of events in arrays.
+void release_events_memory(Event *events, FragmentedEvent *f_events,
+                           uint32_t num_events);
 
 //! Print that a fatal error occurred and exit.
 void fatal_error(void);
 
 //! Parse a positive integer from a string.
 //!
-//! @param[in] str  The string to parse.
+//! @param[in] str  The string to parse..
 //!
-//! @return     A positive integer
-//! @return 0   Failure
+//! @return     A positive integer.
+//! @return 0   Failure.
 uint32_t parse_pos_int(char const *str);
 
 //==============================================================================
@@ -120,9 +127,9 @@ int main(int argc, char **argv) {
 void run_benchmarks(void) {
   int num_configs = 2;
   DataConfig configs[] = {
-    // n     , size (bytes)
-    { 1000 , 500  },
-    { 1000 , 1000 },
+      // n     , size (bytes)
+      {1000, 500},
+      {1000, 1000},
   };
 
   for (uint8_t i = 0; i < num_configs; ++i) {
@@ -135,17 +142,19 @@ void run_benchmarks(void) {
 }
 
 void run_write_benchmark(DataConfig config) {
-  Event           *raw_events;
+  Event *raw_events;
   FragmentedEvent *events;
 
-  // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
-  // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
-  // (10KB).
-  uint32_t batch_sizes[] = { 1, 5, 10 };
+  // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected
+  // data" (e.g. keys + values + ranges for write, keys + ranges for read).
+  // Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000
+  // bytes (10KB).
+  uint32_t batch_sizes[] = {1, 5, 10};
   uint32_t num_bs = 3;
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
-  uint16_t num_fragments = (uint16_t) ceil((double) event_size / (double) OPTIMAL_VALUE_SIZE);
+  uint16_t num_fragments =
+      (uint16_t)ceil((double)event_size / (double)OPTIMAL_VALUE_SIZE);
 
   // Generate mock events
   load_mock_events(&raw_events, &events, num_events, event_size);
@@ -166,18 +175,19 @@ void run_write_benchmark(DataConfig config) {
 }
 
 void run_write_benchmark_async(DataConfig config) {
-
-  Event           *raw_events;
+  Event *raw_events;
   FragmentedEvent *events;
 
-  // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected data" (e.g. keys + values + ranges for
-  // write, keys + ranges for read). Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000 bytes
-  // (10KB).
-  uint32_t batch_sizes[] = { 1, 5, 10 };
+  // Size of transaction cannot exceed 10,000,000 bytes (10MB) of "affected
+  // data" (e.g. keys + values + ranges for write, keys + ranges for read).
+  // Therefore, batch size cannot exceed 1000 with OPTIMAL_VALUE_SIZE of 10,000
+  // bytes (10KB).
+  uint32_t batch_sizes[] = {1, 5, 10};
   uint32_t num_bs = 3;
   uint32_t num_events = config.num_events;
   uint32_t event_size = config.event_size;
-  uint16_t num_fragments = (uint16_t) ceil((double) event_size / (double) OPTIMAL_VALUE_SIZE);
+  uint16_t num_fragments =
+      (uint16_t)ceil((double)event_size / (double)OPTIMAL_VALUE_SIZE);
 
   // Generate mock events
   load_mock_events(&raw_events, &events, num_events, event_size);
@@ -197,57 +207,68 @@ void run_write_benchmark_async(DataConfig config) {
   release_events_memory(raw_events, events, num_events);
 }
 
-void timed_array_write(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
+void timed_array_write(FragmentedEvent *events, uint32_t num_events,
+                       uint32_t num_frags, uint32_t batch_size) {
   clock_t c_start, c_end;
   // uint32_t progress_bar_increment = ((num_events * num_frags) / 100);
 
   fdb_set_batch_size(batch_size);
 
-  // Write array of events in batches, and print a bar as a visual indicator of progress
+  // Write array of events in batches, and print a bar as a visual indicator of
+  // progress
   c_start = clock();
   int error = fdb_timed_write_event_array(events, num_events);
-  if (error) fatal_error();
+  if (error)
+    fatal_error();
 
   c_end = clock();
 
   // Print timing results
-  printf("  cpu time  %12f ms\n", (((double)(c_end - c_start)) / CLOCKS_PER_SEC) * 1000.0);
+  printf("  cpu time  %12f ms\n",
+         (((double)(c_end - c_start)) / CLOCKS_PER_SEC) * 1000.0);
 
   // Clean up the FoundationDB cluster
-  if (fdb_clear_timed_database(num_events, num_frags)) fatal_error();
+  if (fdb_clear_timed_database(num_events, num_frags))
+    fatal_error();
 }
 
-void timed_array_write_async(FragmentedEvent* events, uint32_t num_events, uint32_t num_frags, uint32_t batch_size) {
+void timed_array_write_async(FragmentedEvent *events, uint32_t num_events,
+                             uint32_t num_frags, uint32_t batch_size) {
   clock_t c_start, c_end;
   // uint32_t progress_bar_increment = ((num_events * num_frags) / 100);
 
   fdb_set_batch_size(batch_size);
 
-  // Write array of events in batches, and print a bar as a visual indicator of progress
+  // Write array of events in batches, and print a bar as a visual indicator of
+  // progress
   c_start = clock();
   int error = fdb_timed_write_event_array_async(events, num_events);
-  if (error) fatal_error();
+  if (error)
+    fatal_error();
 
   c_end = clock();
 
   // Print timing results
-  printf("  cpu time  %12f ms\n", (((double)(c_end - c_start)) / CLOCKS_PER_SEC) * 1000.0);
+  printf("  cpu time  %12f ms\n",
+         (((double)(c_end - c_start)) / CLOCKS_PER_SEC) * 1000.0);
 
   // Clean up the FoundationDB cluster
-  if (fdb_clear_timed_database_async(num_events, num_frags)) fatal_error();
+  if (fdb_clear_timed_database_async(num_events, num_frags))
+    fatal_error();
 }
 
-void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_events, uint32_t size) {
+void load_mock_events(Event **events, FragmentedEvent **f_events,
+                      uint32_t num_events, uint32_t size) {
   // Seed the random number generator
   srand(time(0));
 
   // Allocate memory for events
-  *events = (Event *) malloc(sizeof(Event) * num_events);
+  *events = (Event *)malloc(sizeof(Event) * num_events);
 
   // Write random key/values into the given array.
   for (uint32_t i = 0; i < num_events; ++i) {
     // Generate random byte data
-    uint8_t *data = (uint8_t *) malloc(sizeof(uint8_t) * size);
+    uint8_t *data = (uint8_t *)malloc(sizeof(uint8_t) * size);
     for (uint64_t j = 0; j < size; ++j) {
       data[j] = rand() % 256;
     }
@@ -259,34 +280,35 @@ void load_mock_events(Event **events, FragmentedEvent **f_events, uint32_t num_e
   }
 
   // Fragment events
-  *f_events = (FragmentedEvent *) malloc(sizeof(FragmentedEvent) * num_events);
+  *f_events = (FragmentedEvent *)malloc(sizeof(FragmentedEvent) * num_events);
   for (uint32_t i = 0; i < num_events; ++i) {
     fragment_event((*events + i), (*f_events + i));
   }
 }
 
-void load_lmdb_events(Event **events, FragmentedEvent **f_events, uint32_t num_events, uint32_t size) {
+void load_lmdb_events(Event **events, FragmentedEvent **f_events,
+                      uint32_t num_events, uint32_t size) {
   // Allocate memory for events
-  *events = (Event *) malloc(sizeof(Event) * num_events);
+  *events = (Event *)malloc(sizeof(Event) * num_events);
 
   // TODO
 
   // Fragment events
-  *f_events = (FragmentedEvent *) malloc(sizeof(FragmentedEvent) * num_events);
+  *f_events = (FragmentedEvent *)malloc(sizeof(FragmentedEvent) * num_events);
   for (uint32_t i = 0; i < num_events; ++i) {
     fragment_event((*events + i), (*f_events + i));
   }
 }
 
-void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t num_events) {
-
+void release_events_memory(Event *events, FragmentedEvent *f_events,
+                           uint32_t num_events) {
   // Release fragment pointers
   for (uint32_t i = 0; i < num_events; ++i) {
     free_fragmented_event(f_events + i);
   }
 
   // Release fragmented events array
-  free((void *) f_events);
+  free((void *)f_events);
 
   // Release event data
   for (uint32_t i = 0; i < num_events; ++i) {
@@ -294,7 +316,7 @@ void release_events_memory(Event *events, FragmentedEvent *f_events, uint32_t nu
   }
 
   // Release events array
-  free((void *) events);
+  free((void *)events);
 }
 
 void fatal_error(void) {
@@ -303,7 +325,6 @@ void fatal_error(void) {
 }
 
 uint32_t parse_pos_int(char const *str) {
-
   int32_t parsed_num = atoi(str);
   if (parsed_num < 1) {
     return 0;

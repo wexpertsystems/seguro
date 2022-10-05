@@ -5,15 +5,14 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../constants.h"
 #include "../event.h"
 #include "../fdb.h"
-
 
 //==============================================================================
 // Prototypes
@@ -25,22 +24,27 @@ void test_write_to_fdb(void);
 //! Test that data can be cleared from a FoundationDB cluster through the C API.
 void test_clear_from_fdb(void);
 
-//! Test that a single event can be cleared from a FoundationDB cluster in its entirety.
+//! Test that a single event can be cleared from a FoundationDB cluster in its
+//! entirety.
 void test_clear_event(void);
 
-//! Test that an array of events can be cleared from a FoundationDB cluster in their entirety.
+//! Test that an array of events can be cleared from a FoundationDB cluster in
+//! their entirety.
 void test_clear_event_array(void);
 
-//! Test that all data can be cleared from a FoundationDB cluster in a single transaction.
+//! Test that all data can be cleared from a FoundationDB cluster in a single
+//! transaction.
 void test_clear_database(void);
 
-//! Test that a portion of an event the size of one batch can be written to a FoundationDB cluster.
+//! Test that a portion of an event the size of one batch can be written to a
+//! FoundationDB cluster.
 void test_write_batch(void);
 
 //! Test that an event can be written to a FoundationDB cluster in its entirety.
 void test_write_event(void);
 
-//! Test that an array of events can be written to a FoundationDB cluster in their entirety.
+//! Test that an array of events can be written to a FoundationDB cluster in
+//! their entirety.
 void test_write_event_array(void);
 
 //! Test that an event can be read from a FoundationDB cluster in its entirety.
@@ -48,24 +52,27 @@ void test_read_event(void);
 
 //! Generate random, fake data for simulating events.
 //!
-//! @param[in] size   Number of bytes of data to generate
+//! @param[in] size   Number of bytes of data to generate.
 //!
-//! @return   Handle to array of generated data
+//! @return   Handle to array of generated data.
 uint8_t *generate_dummy_data(uint64_t size);
 
-//! Count the number of keys stored in the FoundationDB cluster referenced by a FDBTransaction.
+//! Count the number of keys stored in the FoundationDB cluster referenced by a
+//! FDBTransaction.
 //!
-//! @param[in] tx   Handle to a FoundationDB transaction
+//! @param[in] tx   Handle to a FoundationDB transaction.
 //!
-//! @return   Number of keys stored in the FoundationDB cluster
+//! @return   Number of keys stored in the FoundationDB cluster.
 uint32_t count_keys_in_database(FDBTransaction *tx);
 
-//! Count the number of keys stored for a particular event in the FoundationDB cluster referenced by a FDBTransaction.
+//! Count the number of keys stored for a particular event in the FoundationDB
+//! cluster referenced by a FDBTransaction.
 //!
-//! @param[in] tx   Handle to a FoundationDB transaction
+//! @param[in] tx   Handle to a FoundationDB transaction.
 //!
-//! @return   Number of event keys stored in the FoundationDB cluster
-uint32_t count_event_fragments_in_database(FDBTransaction *tx, uint64_t event_id);
+//! @return   Number of event keys stored in the FoundationDB cluster.
+uint32_t count_event_fragments_in_database(FDBTransaction *tx,
+                                           uint64_t event_id);
 
 //! Gracefully fail a test by cleaning up before exiting.
 void fail_test(void);
@@ -82,7 +89,6 @@ void fail_test(void);
 //! @return  0  Success
 //! @return -1  Failure
 int main(int argc, char **argv) {
-
   printf("Starting integration tests...\n");
 
   // Initialize FoundationDB database
@@ -90,7 +96,8 @@ int main(int argc, char **argv) {
   fdb_init_network_thread();
 
   // Run integration tests
-  // TODO: Could fail tests more gracefully, using calls to 'fail_test()' instead of asserts
+  // TODO: Could fail tests more gracefully, using calls to 'fail_test()'
+  // instead of asserts
   test_write_to_fdb();
   test_clear_from_fdb();
   test_clear_event();
@@ -112,18 +119,18 @@ int main(int argc, char **argv) {
 }
 
 void test_write_to_fdb(void) {
-
-  FDBFuture      *future;
+  FDBFuture *future;
   FDBTransaction *tx;
-  uint8_t         num_tests = 5;
-  uint8_t         dummy_size = 10;
-  uint8_t         dummy_keys[num_tests];
-  uint8_t        *dummy_data[num_tests];
+  uint8_t num_tests = 5;
+  uint8_t dummy_size = 10;
+  uint8_t dummy_keys[num_tests];
+  uint8_t *dummy_data[num_tests];
 
   printf("\nStarting simple FDB write test...\n");
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -137,23 +144,30 @@ void test_write_to_fdb(void) {
   }
 
   // Apply transaction to database
-  if (fdb_send_transaction(tx)) fail_test();
+  if (fdb_send_transaction(tx))
+    fail_test();
 
-  // Check that each key exists in the database and that it has the correct value data
+  // Check that each key exists in the database and that it has the correct
+  // value data
   for (uint8_t i = 0; i < num_tests; ++i) {
-    fdb_bool_t     has_value;
+    fdb_bool_t has_value;
     const uint8_t *value;
-    int32_t        value_length;
+    int32_t value_length;
 
     future = fdb_transaction_get(tx, (dummy_keys + i), 1, 0);
 
-    if (fdb_check_error(fdb_future_block_until_ready(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_error(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_value(future, &has_value, &value, &value_length))) fail_test();
+    if (fdb_check_error(fdb_future_block_until_ready(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_error(future)))
+      fail_test();
+    if (fdb_check_error(
+            fdb_future_get_value(future, &has_value, &value, &value_length)))
+      fail_test();
 
     assert(has_value);
     assert(value_length == dummy_size);
-    assert(!memcmp((const char *)dummy_data[i], (const char *)value, dummy_size));
+    assert(
+        !memcmp((const char *)dummy_data[i], (const char *)value, dummy_size));
 
     fdb_future_destroy(future);
   }
@@ -171,16 +185,16 @@ void test_write_to_fdb(void) {
 }
 
 void test_clear_from_fdb(void) {
-
-  FDBFuture      *future;
+  FDBFuture *future;
   FDBTransaction *tx;
-  uint8_t         num_tests = 5;
-  uint8_t         dummy_keys[num_tests];
+  uint8_t num_tests = 5;
+  uint8_t dummy_keys[num_tests];
 
   printf("\nStarting simple FDB clear test...\n");
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is not empty before test
   assert(count_keys_in_database(tx) != 0);
@@ -192,19 +206,24 @@ void test_clear_from_fdb(void) {
   }
 
   // Apply transaction to database
-  if (fdb_send_transaction(tx)) fail_test();
+  if (fdb_send_transaction(tx))
+    fail_test();
 
   // Check that each key no longer exists in the database
   for (uint8_t i = 0; i < num_tests; ++i) {
-    fdb_bool_t     has_value;
+    fdb_bool_t has_value;
     const uint8_t *value;
-    int32_t        value_length;
+    int32_t value_length;
 
     future = fdb_transaction_get(tx, (dummy_keys + i), 1, 0);
 
-    if (fdb_check_error(fdb_future_block_until_ready(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_error(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_value(future, &has_value, &value, &value_length))) fail_test();
+    if (fdb_check_error(fdb_future_block_until_ready(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_error(future)))
+      fail_test();
+    if (fdb_check_error(
+            fdb_future_get_value(future, &has_value, &value, &value_length)))
+      fail_test();
 
     assert(!has_value);
 
@@ -222,13 +241,12 @@ void test_clear_from_fdb(void) {
 }
 
 void test_clear_event(void) {
-
   FDBTransaction *tx;
   FragmentedEvent dummy_event;
-  uint64_t        event_id = 42;
-  uint32_t        num_fragments = 10;
-  uint16_t        dummy_size = 10000;
-  uint8_t        *dummy_data[num_fragments];
+  uint64_t event_id = 42;
+  uint32_t num_fragments = 10;
+  uint16_t dummy_size = 10000;
+  uint8_t *dummy_data[num_fragments];
 
   printf("\nStarting fdb_clear_event() test...\n");
 
@@ -237,7 +255,8 @@ void test_clear_event(void) {
   dummy_event.num_fragments = num_fragments;
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -250,10 +269,12 @@ void test_clear_event(void) {
 
     dummy_data[i] = generate_dummy_data(dummy_size);
 
-    fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, dummy_data[i], dummy_size);
+    fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, dummy_data[i],
+                        dummy_size);
   }
 
-  if (fdb_send_transaction(tx)) fail_test();
+  if (fdb_send_transaction(tx))
+    fail_test();
 
   // Verify that the event is in the database
   assert(count_event_fragments_in_database(tx, event_id) == num_fragments);
@@ -266,7 +287,8 @@ void test_clear_event(void) {
   fdb_clear_event(&dummy_event);
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that no event fragments still exist in the database
   assert(count_event_fragments_in_database(tx, event_id) == 0);
@@ -285,12 +307,11 @@ void test_clear_event(void) {
 }
 
 void test_clear_event_array(void) {
-
-  Event           *mock_events;
+  Event *mock_events;
   FragmentedEvent *mock_f_events;
-  FDBTransaction  *tx;
-  uint32_t         num_events = 10;
-  uint8_t          data_size = 10;
+  FDBTransaction *tx;
+  uint32_t num_events = 10;
+  uint8_t data_size = 10;
 
   printf("\nStarting fdb_clear_event_array() test...\n");
 
@@ -308,7 +329,8 @@ void test_clear_event_array(void) {
   }
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -318,10 +340,13 @@ void test_clear_event_array(void) {
     uint8_t key[FDB_KEY_TOTAL_LENGTH];
     fdb_build_event_key(key, mock_f_events[i].id, 0);
 
-    fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, mock_f_events[i].fragments[0], mock_f_events[i].payload_length);
+    fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH,
+                        mock_f_events[i].fragments[0],
+                        mock_f_events[i].payload_length);
   }
 
-  if (fdb_send_transaction(tx)) fail_test();
+  if (fdb_send_transaction(tx))
+    fail_test();
 
   // Verify that the events are in the database
   for (uint32_t i = 0; i < num_events; ++i) {
@@ -335,7 +360,8 @@ void test_clear_event_array(void) {
   fdb_clear_event_array(mock_f_events, num_events);
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that no event fragments still exist in the database
   assert(count_keys_in_database(tx) == 0);
@@ -355,13 +381,12 @@ void test_clear_event_array(void) {
 }
 
 void test_clear_database(void) {
-
-  Event           *mock_events;
+  Event *mock_events;
   FragmentedEvent *mock_f_events;
-  FDBTransaction  *tx;
-  uint32_t         num_events = 5;
-  uint32_t         num_fragments = 5;
-  uint32_t         data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
+  FDBTransaction *tx;
+  uint32_t num_events = 5;
+  uint32_t num_fragments = 5;
+  uint32_t data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
 
   printf("\nStarting fdb_clear_database() test...\n");
 
@@ -378,7 +403,8 @@ void test_clear_database(void) {
   }
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -390,11 +416,13 @@ void test_clear_database(void) {
     for (uint8_t j = 0; j < num_fragments; ++j) {
       fdb_build_event_key(key, mock_f_events[i].id, j);
 
-      fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH, mock_f_events[i].fragments[j], OPTIMAL_VALUE_SIZE);
+      fdb_transaction_set(tx, key, FDB_KEY_TOTAL_LENGTH,
+                          mock_f_events[i].fragments[j], OPTIMAL_VALUE_SIZE);
     }
   }
 
-  if (fdb_send_transaction(tx)) fail_test();
+  if (fdb_send_transaction(tx))
+    fail_test();
 
   // Verify that the events are in the database
   assert(count_keys_in_database(tx) == (num_events * num_fragments));
@@ -406,7 +434,8 @@ void test_clear_database(void) {
   fdb_clear_database();
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that no event fragments still exist in the database
   assert(count_keys_in_database(tx) == 0);
@@ -426,15 +455,14 @@ void test_clear_database(void) {
 }
 
 void test_write_batch(void) {
-
-  FDBTransaction  *tx;
-  Event            mock_event;
-  FragmentedEvent  mock_f_event;
-  uint64_t         event_id = 42;
-  uint32_t         num_fragments = 3;
-  uint32_t         fragment_pos = 0;
-  uint32_t         data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
-  uint8_t          batch_count = 0;
+  FDBTransaction *tx;
+  Event mock_event;
+  FragmentedEvent mock_f_event;
+  uint64_t event_id = 42;
+  uint32_t num_fragments = 3;
+  uint32_t fragment_pos = 0;
+  uint32_t data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
+  uint8_t batch_count = 0;
 
   printf("\nStarting fdb_write_batch() test...\n");
 
@@ -449,7 +477,8 @@ void test_write_batch(void) {
   fragment_event(&mock_event, &mock_f_event);
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -467,7 +496,8 @@ void test_write_batch(void) {
   assert(batch_count = num_fragments);
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that the events are in the database
   assert(count_keys_in_database(tx) == num_fragments);
@@ -487,13 +517,12 @@ void test_write_batch(void) {
 }
 
 void test_write_event(void) {
-
-  FDBTransaction  *tx;
-  Event            mock_event;
-  FragmentedEvent  mock_f_event;
-  uint64_t         event_id = 42;
-  uint32_t         num_fragments = 3;
-  uint32_t         data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
+  FDBTransaction *tx;
+  Event mock_event;
+  FragmentedEvent mock_f_event;
+  uint64_t event_id = 42;
+  uint32_t num_fragments = 3;
+  uint32_t data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
 
   printf("\nStarting fdb_write_event() test...\n");
 
@@ -508,7 +537,8 @@ void test_write_event(void) {
   fragment_event(&mock_event, &mock_f_event);
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -520,7 +550,8 @@ void test_write_event(void) {
   fdb_write_event(&mock_f_event);
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that the events are in the database
   assert(count_keys_in_database(tx) == num_fragments);
@@ -540,11 +571,10 @@ void test_write_event(void) {
 }
 
 void test_write_event_array(void) {
-
-  FDBTransaction  *tx;
-  Event           *mock_events;
+  FDBTransaction *tx;
+  Event *mock_events;
   FragmentedEvent *mock_f_events;
-  uint32_t         num_events = 4;
+  uint32_t num_events = 4;
 
   printf("\nStarting fdb_write_event_array() test...\n");
 
@@ -556,7 +586,8 @@ void test_write_event_array(void) {
   mock_f_events = malloc(sizeof(FragmentedEvent) * num_events);
 
   for (uint8_t i = 0; i < num_events; ++i) {
-    // Want to test mixing events, splitting events in the middle, and multiple fragments for a single event
+    // Want to test mixing events, splitting events in the middle, and multiple
+    // fragments for a single event
     uint32_t data_size = ((lrint(pow(10.0, i))) * OPTIMAL_VALUE_SIZE);
 
     mock_events[i].id = i;
@@ -567,7 +598,8 @@ void test_write_event_array(void) {
   }
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -579,11 +611,13 @@ void test_write_event_array(void) {
   fdb_write_event_array(mock_f_events, num_events);
 
   // Need a new transaction handle to read from the database
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that the events are in the database
   for (uint8_t i = 0; i < num_events; ++i) {
-    assert(count_event_fragments_in_database(tx, mock_f_events[i].id) == mock_f_events[i].num_fragments);
+    assert(count_event_fragments_in_database(tx, mock_f_events[i].id) ==
+           mock_f_events[i].num_fragments);
   }
 
   // Release the dummy data memory
@@ -604,12 +638,11 @@ void test_write_event_array(void) {
 }
 
 void test_read_event(void) {
-
-  FDBTransaction  *tx;
-  Event            mock_event, return_event;
-  FragmentedEvent  mock_f_event;
-  uint64_t         event_id = 42;
-  uint32_t         data_size = (3 * OPTIMAL_VALUE_SIZE);
+  FDBTransaction *tx;
+  Event mock_event, return_event;
+  FragmentedEvent mock_f_event;
+  uint64_t event_id = 42;
+  uint32_t data_size = (3 * OPTIMAL_VALUE_SIZE);
 
   printf("\nStarting fdb_read_event() test...\n");
 
@@ -626,7 +659,8 @@ void test_read_event(void) {
   return_event.id = event_id;
 
   // Setup transaction handle
-  if (fdb_check_error(fdb_setup_transaction(&tx))) fail_test();
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
 
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
@@ -656,7 +690,6 @@ void test_read_event(void) {
 }
 
 uint8_t *generate_dummy_data(uint64_t size) {
-
   uint8_t *result = malloc(sizeof(uint8_t) * size);
 
   // Seed the random number generator
@@ -674,40 +707,50 @@ uint8_t *generate_dummy_data(uint64_t size) {
 /*
  * Found on the FDB forums:
  *
- * "The fdb_transaction_get_range() operation returns data one batch at a time, meaning that you are supposed to check
- *  the value of out_more to know whether you need to call it again to get more keys for the range. The
- *  FDB_STREAMING_MODE_WANT_ALL streaming mode does not mean 'in a single batch'; it should be understood as 'in as few
- *  batches as possible'. The other streaming modes are for cases where the user plans to inspect data as it arrives and
- *  stop iterating on some end condition, possibly well before the end of the range.
+ * "The fdb_transaction_get_range() operation returns data one batch at a time,
+ * meaning that you are supposed to check the value of out_more to know whether
+ * you need to call it again to get more keys for the range. The
+ * FDB_STREAMING_MODE_WANT_ALL streaming mode does not mean 'in a single
+ * batch'; it should be understood as 'in as few batches as possible'. The other
+ * streaming modes are for cases where the user plans to inspect data as it
+ * arrives and stop iterating on some end condition, possibly well before the
+ * end of the range.
  *
- *  Consider the hypothetical case of 5000 keys in a given range. It's possible that FDB will only return 3000 keys:
- *  what it considers to be the ideal batch size for this get request. In this case, the user would need to check if
- *  out_more is non-zero after the call, and call the fdb_transaction_get_range again using the
- *  FDB_KEYSEL_FIRST_GREATER_THAN macro on the last key of the previous batch. The user would need to repeat this until
- *  one such transaction returned an out_more value of 0 - or more specifically, until one such transaction failed to
- *  set out_more to 1."
+ * Consider the hypothetical case of 5000 keys in a given range. It's possible
+ * that FDB will only return 3000 keys: what it considers to be the ideal batch
+ * size for this get request. In this case, the user would need to check if
+ * out_more is non-zero after the call, and call the fdb_transaction_get_range
+ * again using the FDB_KEYSEL_FIRST_GREATER_THAN macro on the last key of the
+ * previous batch. The user would need to repeat this until one such transaction
+ * returned an out_more value of 0 - or more specifically, until one such
+ * transaction failed to set out_more to 1."
+ *
+ * https://forums.foundationdb.org/t/why-can-i-only-range-read-2857-keys/1517/2
+ *
  */
 uint32_t count_keys_in_database(FDBTransaction *tx) {
-
-  FDBFuture         *future;
+  FDBFuture *future;
   const FDBKeyValue *out_kv;
-  fdb_bool_t         out_more;
-  uint32_t           out_total = 0;
-  int32_t            out_count;
-  uint8_t            range_start_key = 0;
-  uint8_t            range_end_key = 0xFF;
+  fdb_bool_t out_more;
+  uint32_t out_total = 0;
+  int32_t out_count;
+  uint8_t range_start_key = 0;
+  uint8_t range_end_key = 0xFF;
 
   // Loop until FoundationDB says there is no more data
   do {
     out_more = 0;
-    future = fdb_transaction_get_range(tx,
-                                       &range_start_key, 0, 0, (out_total + 1),
-                                       &range_end_key, 1, 0, 1,
-                                       0, 0, FDB_STREAMING_MODE_WANT_ALL, 0, 0, 0);
+    future = fdb_transaction_get_range(
+        tx, &range_start_key, 0, 0, (out_total + 1), &range_end_key, 1, 0, 1, 0,
+        0, FDB_STREAMING_MODE_WANT_ALL, 0, 0, 0);
 
-    if (fdb_check_error(fdb_future_block_until_ready(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_error(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_keyvalue_array(future, &out_kv, &out_count, &out_more))) fail_test();
+    if (fdb_check_error(fdb_future_block_until_ready(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_error(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_keyvalue_array(future, &out_kv,
+                                                      &out_count, &out_more)))
+      fail_test();
 
     out_total += out_count;
 
@@ -717,15 +760,15 @@ uint32_t count_keys_in_database(FDBTransaction *tx) {
   return (uint32_t)out_total;
 }
 
-uint32_t count_event_fragments_in_database(FDBTransaction *tx, uint64_t event_id) {
-
-  FDBFuture         *future;
+uint32_t count_event_fragments_in_database(FDBTransaction *tx,
+                                           uint64_t event_id) {
+  FDBFuture *future;
   const FDBKeyValue *out_kv;
-  fdb_bool_t         out_more;
-  uint32_t           out_total = 0;
-  int32_t            out_count;
-  uint8_t            range_start_key[FDB_KEY_TOTAL_LENGTH];
-  uint8_t            range_end_key[FDB_KEY_TOTAL_LENGTH];
+  fdb_bool_t out_more;
+  uint32_t out_total = 0;
+  int32_t out_count;
+  uint8_t range_start_key[FDB_KEY_TOTAL_LENGTH];
+  uint8_t range_end_key[FDB_KEY_TOTAL_LENGTH];
 
   fdb_build_event_key(range_start_key, event_id, 0);
   fdb_build_event_key(range_end_key, (event_id + 1), 0);
@@ -733,14 +776,17 @@ uint32_t count_event_fragments_in_database(FDBTransaction *tx, uint64_t event_id
   // Loop until FoundationDB says there is no more data
   do {
     out_more = 0;
-    future = fdb_transaction_get_range(tx,
-                                       range_start_key, FDB_KEY_TOTAL_LENGTH, 1, out_total,
-                                       range_end_key, FDB_KEY_TOTAL_LENGTH, 0, 1,
-                                       0, 0, FDB_STREAMING_MODE_WANT_ALL, 0, 0, 0);
+    future = fdb_transaction_get_range(
+        tx, range_start_key, FDB_KEY_TOTAL_LENGTH, 1, out_total, range_end_key,
+        FDB_KEY_TOTAL_LENGTH, 0, 1, 0, 0, FDB_STREAMING_MODE_WANT_ALL, 0, 0, 0);
 
-    if (fdb_check_error(fdb_future_block_until_ready(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_error(future))) fail_test();
-    if (fdb_check_error(fdb_future_get_keyvalue_array(future, &out_kv, &out_count, &out_more))) fail_test();
+    if (fdb_check_error(fdb_future_block_until_ready(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_error(future)))
+      fail_test();
+    if (fdb_check_error(fdb_future_get_keyvalue_array(future, &out_kv,
+                                                      &out_count, &out_more)))
+      fail_test();
 
     out_total += out_count;
 
@@ -751,7 +797,6 @@ uint32_t count_event_fragments_in_database(FDBTransaction *tx, uint64_t event_id
 }
 
 void fail_test(void) {
-
   fdb_shutdown_network_thread();
   fdb_shutdown_database();
 

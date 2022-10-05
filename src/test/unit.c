@@ -3,13 +3,12 @@
 //! Unit tests for Seguro
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "../constants.h"
 #include "../event.h"
-
 
 //==============================================================================
 // Prototypes
@@ -24,7 +23,8 @@ void test_fragment_event_trivial(void);
 //! Test fragmentation for the largest single-fragment event.
 void test_fragment_event_small(void);
 
-//! Test fragmentation for an event with multiple fragments and an odd-sized leftover payload.
+//! Test fragmentation for an event with multiple fragments and an odd-sized
+//! leftover payload.
 void test_fragment_event_large(void);
 
 //! Test building/reading headers.
@@ -48,7 +48,6 @@ void test_read_header(void);
 //! @return  0  Success.
 //! @return -1  Failure.
 int main(int argc, char **argv) {
-
   printf("Starting unit tests...\n");
 
   // Run tests
@@ -61,7 +60,6 @@ int main(int argc, char **argv) {
 }
 
 void test_fragment_event(void) {
-
   printf("\nStarting event fragmentation tests...\n");
 
   test_fragment_event_trivial();
@@ -72,13 +70,12 @@ void test_fragment_event(void) {
 }
 
 void test_fragment_event_trivial(void) {
-
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  id = 123;
-  uint8_t   data[1];
-  Event     event = { id, 1, data };
+  uint64_t id = 123;
+  uint8_t data[1];
+  Event event = {id, 1, data};
 
   // Fragment event
   fragment_event(&event, &f_event);
@@ -97,14 +94,13 @@ void test_fragment_event_trivial(void) {
 }
 
 void test_fragment_event_small(void) {
-
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  id = 456;
-  uint16_t  data_length = OPTIMAL_VALUE_SIZE;
-  uint8_t   data[data_length];
-  Event     event = { id, data_length, data };
+  uint64_t id = 456;
+  uint16_t data_length = OPTIMAL_VALUE_SIZE;
+  uint8_t data[data_length];
+  Event event = {id, data_length, data};
 
   // Fragment event
   fragment_event(&event, &f_event);
@@ -123,16 +119,15 @@ void test_fragment_event_small(void) {
 }
 
 void test_fragment_event_large(void) {
-
   FragmentedEvent f_event;
 
   // Setup event
-  uint64_t  id = 789;
-  uint16_t  data_length = (3 * OPTIMAL_VALUE_SIZE) + 1;
-  uint8_t   data[data_length];
-  Event     event = { id, data_length, data };
+  uint64_t id = 789;
+  uint16_t data_length = (3 * OPTIMAL_VALUE_SIZE) + 1;
+  uint8_t data[data_length];
+  Event event = {id, data_length, data};
 
-  uint8_t   num_fragments = 4;
+  uint8_t num_fragments = 4;
 
   // Set first byte of each fragment to 1 (all others are 0)
   data[0] = 1;
@@ -164,7 +159,6 @@ void test_fragment_event_large(void) {
 }
 
 void test_headers(void) {
-
   printf("\nStarting event header tests...\n");
 
   test_build_header();
@@ -174,8 +168,7 @@ void test_headers(void) {
 }
 
 void test_build_header(void) {
-
-  uint8_t header[MAX_HEADER_SIZE] = { 0 };
+  uint8_t header[MAX_HEADER_SIZE] = {0};
   uint8_t header_length = 0;
 
   printf("\tbuilding headers... ");
@@ -244,9 +237,8 @@ void test_build_header(void) {
 }
 
 void test_read_header(void) {
-
-  uint8_t  header[MAX_HEADER_SIZE] = { 0 };
-  uint8_t  header_length = 0;
+  uint8_t header[MAX_HEADER_SIZE] = {0};
+  uint8_t header_length = 0;
   uint32_t num_fragments;
 
   printf("\treading headers... ");
