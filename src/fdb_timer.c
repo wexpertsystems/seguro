@@ -177,6 +177,7 @@ int fdb_timed_write_event_array_async(FragmentedEvent *events,
   clock_t *timers[num_batches];
   FDBTimer timer = {(clock_t)INT_MAX, (clock_t)0, 0.0};
   FDBCallbackData *cbd = malloc(sizeof(FDBCallbackData));
+  clock_t thread_start = clock();
 
   for (uint32_t j = 0; j < num_batches; j++)
     if (fdb_check_error(fdb_setup_transaction(&txs[j]))) {
@@ -247,11 +248,15 @@ int fdb_timed_write_event_array_async(FragmentedEvent *events,
     // Wait for all txs to finish
   }
 
+  clock_t thread_end = clock();
+  double thread_total =
+      ((((double)(thread_end - thread_start)) / CLOCKS_PER_SEC) * 1000.0);
+
   // Print times
-  printf("    thread  %12f ms\n", (timer.t_total));
-  printf(" avg/event  %12f ms\n", (timer.t_total / num_events));
+  printf("    thread  %12f ms\n", (thread_total));
+  printf(" avg/event  %12f ms\n", (thread_total / num_events));
   printf(" max batch  %12f ms\n", (1000.0 * timer.t_max / CLOCKS_PER_SEC));
-  printf(" avg batch  %12f ms\n", (timer.t_total / num_batches));
+  printf(" avg batch  %12f ms\n", (thread_total / num_batches));
   printf(" min batch  %12f ms\n", (1000.0 * timer.t_min / CLOCKS_PER_SEC));
 
   // Success

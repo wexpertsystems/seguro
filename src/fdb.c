@@ -555,7 +555,6 @@ uint32_t add_event_set_transactions(FDBTransaction *tx, FragmentedEvent *event,
 }
 
 void add_event_clear_transaction(FDBTransaction *tx, FragmentedEvent *event) {
-
   uint8_t range_start_key[FDB_KEY_TOTAL_LENGTH] = {0};
   uint8_t range_end_key[FDB_KEY_TOTAL_LENGTH] = {0};
 

@@ -125,11 +125,12 @@ int main(int argc, char **argv) {
 }
 
 void run_benchmarks(void) {
-  int num_configs = 2;
+  int num_configs = 3;
   DataConfig configs[] = {
       // n     , size (bytes)
       {1000, 500},
       {1000, 1000},
+      {1000, 10000},
   };
 
   for (uint8_t i = 0; i < num_configs; ++i) {
@@ -210,12 +211,10 @@ void run_write_benchmark_async(DataConfig config) {
 void timed_array_write(FragmentedEvent *events, uint32_t num_events,
                        uint32_t num_frags, uint32_t batch_size) {
   clock_t c_start, c_end;
-  // uint32_t progress_bar_increment = ((num_events * num_frags) / 100);
 
   fdb_set_batch_size(batch_size);
 
-  // Write array of events in batches, and print a bar as a visual indicator of
-  // progress
+  // Write array of events in batches
   c_start = clock();
   int error = fdb_timed_write_event_array(events, num_events);
   if (error)
@@ -235,7 +234,6 @@ void timed_array_write(FragmentedEvent *events, uint32_t num_events,
 void timed_array_write_async(FragmentedEvent *events, uint32_t num_events,
                              uint32_t num_frags, uint32_t batch_size) {
   clock_t c_start, c_end;
-  // uint32_t progress_bar_increment = ((num_events * num_frags) / 100);
 
   fdb_set_batch_size(batch_size);
 
