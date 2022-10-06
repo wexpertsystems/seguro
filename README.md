@@ -1,6 +1,7 @@
-# Seguro Phase 2
+# Seguro
 
-This is the work-in-progress repo for Phase 2 of the Seguro implementation for the [Urbit](https://urbit.org) project.
+This is the work-in-progress repo for Phase 2 of the Seguro implementation for 
+the [Urbit](https://urbit.org) project.
 
 More information:
 - [Seguro Prototype Proposal](https://urbit.org/grants/seguro-prototype)
@@ -15,13 +16,15 @@ More information:
 
 ## Configuration
 
-After installing the clients and server packages of FoundationDB, the default server should be reconfigured for local
-testing. This can be done using the `fdbcli` utility on Linux and MacOS:
+After installing the clients and server packages of FoundationDB, the default 
+server should be reconfigured for local testing. This can be done using the 
+`fdbcli` utility on Linux and MacOS:
 ```shell
 fdbcli
 configure single ssd
 ```
-This will set the default local FoundationDB cluster to store a single copy of data on disk.
+This will set the default local FoundationDB cluster to store a single copy of 
+data on disk.
 
 # Usage
 
@@ -79,3 +82,14 @@ sudo systemctl start foundationdb
 fdbcli
 configure new single ssd
 ```
+
+## TODOs
+
+- [ ] Read benchmarks
+  - [ ] Time different FDB range-read streaming modes?
+- [ ] Test with real data from LMDB
+- [ ] Test with remote FoundationDB cluster
+- [ ] Test save-delete-load-launch with real pier
+- [ ] Apply good C practices: https://github.com/mcinglis/c-style
+- [ ] Profile with valgrind
+- [ ] Add FDB Tenant support

@@ -1,275 +1,215 @@
-Seguro Phase 2 benchmarks...
-Ensuring correct API version...
-Setting up network...
-Creating the database...
-Starting network thread...
-Running default benchmarks...
+    events  1000
+event size  500 bytes
+batch size  1
+ fragments  1
+    method  synchronous
+  cpu time    335.536000 ms
+    thread    301.072000 ms
+ avg/event      0.301072 ms
+ max batch      0.667000 ms
+ avg batch      0.301072 ms
+ min batch      0.046000 ms
 
-Running write benchmarks for 1-fragment events...
-Generating 1000000 10000-byte mock events...
-Generating mock events complete.
-Fragmenting mock events...
-Fragmented mock events.
-Running batch size 1 benchmark...
-Wall clock time to write events: 2552.00 s
-Total CPU time to write events:  669.37 s
-Thread time to write events:     502.41 s
-Average time per event:          0.5024 ms
-Max batch time:                  6.9410 ms
-Avg batch time:                  0.5024 ms
-Min batch time:                  0.0140 ms
-Batch size 1 benchmark complete.
-Running batch size 10 benchmark...
-Wall clock time to write events: 292.00 s
-Total CPU time to write events:  79.92 s
-Thread time to write events:     32.61 s
-Average time per event:          0.0326 ms
-Max batch time:                  7.6940 ms
-Avg batch time:                  0.3261 ms
-Min batch time:                  0.0060 ms
-Batch size 10 benchmark complete.
-Running batch size 100 benchmark...
-Wall clock time to write events: 212.00 s
-Total CPU time to write events:  46.99 s
-Thread time to write events:     10.73 s
-Average time per event:          0.0107 ms
-Max batch time:                  6.1950 ms
-Avg batch time:                  1.0729 ms
-Min batch time:                  0.0460 ms
-Batch size 100 benchmark complete.
-Running batch size 500 benchmark...
-Wall clock time to write events: 185.00 s
-Total CPU time to write events:  35.49 s
-Thread time to write events:     8.20 s
-Average time per event:          0.0082 ms
-Max batch time:                  15.2710 ms
-Avg batch time:                  4.0998 ms
-Min batch time:                  0.1300 ms
-Batch size 500 benchmark complete.
-Running batch size 950 benchmark...
-Wall clock time to write events: 162.00 s
-Total CPU time to write events:  25.51 s
-Thread time to write events:     8.06 s
-Average time per event:          0.0081 ms
-Max batch time:                  37.9520 ms
-Avg batch time:                  7.6637 ms
-Min batch time:                  2.7540 ms
-Batch size 950 benchmark complete.
-Write benchmarks for 1-fragment events complete.
+    events  1000
+event size  500 bytes
+batch size  5
+ fragments  1
+    method  synchronous
+  cpu time     73.219000 ms
+    thread     61.480000 ms
+ avg/event      0.061480 ms
+ max batch      0.523000 ms
+ avg batch      0.307400 ms
+ min batch      0.070000 ms
 
-Running write benchmarks for 10-fragment events...
-Generating 100000 100000-byte mock events...
-Starting network thread...
-Generating mock events complete.
-Fragmenting mock events...
-Fragmented mock events.
-Running batch size 1 benchmark...
-Wall clock time to write events: 2631.00 s
-Total CPU time to write events:  668.70 s
-Thread time to write events:     511.36 s
-Average time per event:          5.1136 ms
-Max batch time:                  8.2290 ms
-Avg batch time:                  0.5114 ms
-Min batch time:                  0.0140 ms
-Batch size 1 benchmark complete.
-Running batch size 10 benchmark...
-Wall clock time to write events: 345.00 s
-Total CPU time to write events:  85.97 s
-Thread time to write events:     36.91 s
-Average time per event:          0.3691 ms
-Max batch time:                  5.2830 ms
-Avg batch time:                  0.3691 ms
-Min batch time:                  0.0140 ms
-Batch size 10 benchmark complete.
-Running batch size 100 benchmark...
-Wall clock time to write events: 159.00 s
-Total CPU time to write events:  38.32 s
-Thread time to write events:     11.33 s
-Average time per event:          0.1133 ms
-Max batch time:                  5.8430 ms
-Avg batch time:                  1.1333 ms
-Min batch time:                  0.0510 ms
-Batch size 100 benchmark complete.
-Running batch size 500 benchmark...
-Wall clock time to write events: 201.00 s
-Total CPU time to write events:  33.46 s
-Thread time to write events:     8.74 s
-Average time per event:          0.0874 ms
-Max batch time:                  19.4650 ms
-Avg batch time:                  4.3687 ms
-Min batch time:                  0.1340 ms
-Batch size 500 benchmark complete.
-Running batch size 950 benchmark...
-Wall clock time to write events: 166.00 s
-Total CPU time to write events:  21.96 s
-Thread time to write events:     7.59 s
-Average time per event:          0.0759 ms
-Max batch time:                  26.8030 ms
-Avg batch time:                  7.2180 ms
-Min batch time:                  2.7830 ms
-Batch size 950 benchmark complete.
-Write benchmarks for 10-fragment events complete.
+    events  1000
+event size  500 bytes
+batch size  10
+ fragments  1
+    method  synchronous
+  cpu time     40.468000 ms
+    thread     34.003000 ms
+ avg/event      0.034003 ms
+ max batch      0.684000 ms
+ avg batch      0.340030 ms
+ min batch      0.040000 ms
 
-Running write benchmarks for 100-fragment events...
-Generating 10000 1000000-byte mock events...
-Starting network thread...
-Generating mock events complete.
-Fragmenting mock events...
-Fragmented mock events.
-Running batch size 1 benchmark...
-Wall clock time to write events: 2511.00 s
-Total CPU time to write events:  597.87 s
-Thread time to write events:     470.19 s
-Average time per event:          47.0188 ms
-Max batch time:                  7.3530 ms
-Avg batch time:                  0.4702 ms
-Min batch time:                  0.0130 ms
-Batch size 1 benchmark complete.
-Running batch size 10 benchmark...
-Wall clock time to write events: 270.00 s
-Total CPU time to write events:  73.09 s
-Thread time to write events:     35.28 s
-Average time per event:          3.5277 ms
-Max batch time:                  12.9210 ms
-Avg batch time:                  0.3528 ms
-Min batch time:                  0.0130 ms
-Batch size 10 benchmark complete.
-Running batch size 100 benchmark...
-Wall clock time to write events: 154.00 s
-Total CPU time to write events:  38.94 s
-Thread time to write events:     10.97 s
-Average time per event:          1.0965 ms
-Max batch time:                  4.3830 ms
-Avg batch time:                  1.0965 ms
-Min batch time:                  0.0490 ms
-Batch size 100 benchmark complete.
-Running batch size 500 benchmark...
-Wall clock time to write events: 177.00 s
-Total CPU time to write events:  29.96 s
-Thread time to write events:     8.75 s
-Average time per event:          0.8749 ms
-Max batch time:                  12.7300 ms
-Avg batch time:                  4.3744 ms
-Min batch time:                  0.1290 ms
-Batch size 500 benchmark complete.
-Running batch size 950 benchmark...
-Wall clock time to write events: 198.00 s
-Total CPU time to write events:  22.20 s
-Thread time to write events:     7.90 s
-Average time per event:          0.7896 ms
-Max batch time:                  27.5920 ms
-Avg batch time:                  7.5054 ms
-Min batch time:                  2.7900 ms
-Batch size 950 benchmark complete.
-Write benchmarks for 100-fragment events complete.
+    events  1000
+event size  1000 bytes
+batch size  1
+ fragments  1
+    method  synchronous
+  cpu time    372.028000 ms
+    thread    324.338000 ms
+ avg/event      0.324338 ms
+ max batch      1.008000 ms
+ avg batch      0.324338 ms
+ min batch      0.043000 ms
 
-Running write benchmarks for 250-fragment events...
-Generating 4000 2500000-byte mock events...
-Starting network thread...
-Generating mock events complete.
-Fragmenting mock events...
-Fragmented mock events.
-Running batch size 1 benchmark...
-Wall clock time to write events: 2648.00 s
-Total CPU time to write events:  658.17 s
-Thread time to write events:     525.05 s
-Average time per event:          131.2629 ms
-Max batch time:                  7.6670 ms
-Avg batch time:                  0.5251 ms
-Min batch time:                  0.0140 ms
-Running batch size 10 benchmark...
-Wall clock time to write events: 261.00 s
-Total CPU time to write events:  50.63 s
-Thread time to write events:     36.75 s
-Average time per event:          9.1864 ms
-Max batch time:                  3.0210 ms
-Avg batch time:                  0.3675 ms
-Min batch time:                  0.0190 ms
-Batch size 10 benchmark complete.
-Running batch size 100 benchmark...
-Wall clock time to write events: 174.00 s
-Total CPU time to write events:  26.65 s
-Thread time to write events:     14.21 s
-Average time per event:          3.5537 ms
-Max batch time:                  8.6030 ms
-Avg batch time:                  1.4215 ms
-Min batch time:                  0.0510 ms
-Batch size 100 benchmark complete.
-Running batch size 500 benchmark...
-Wall clock time to write events: 174.00 s
-Total CPU time to write events:  38.06 s
-Thread time to write events:     10.80 s
-Average time per event:          2.7012 ms
-Max batch time:                  27.8500 ms
-Avg batch time:                  5.4024 ms
-Min batch time:                  0.1290 ms
-Batch size 500 benchmark complete.
-Running batch size 950 benchmark...
-Wall clock time to write events: 298.00 s
-Total CPU time to write events:  32.82 s
-Thread time to write events:     8.86 s
-Average time per event:          2.2154 ms
-Max batch time:                  70.2350 ms
-Avg batch time:                  8.4236 ms
-Min batch time:                  2.8090 ms
-Batch size 950 benchmark complete.
-Batch size 1 benchmark complete.
-Write benchmarks for 250-fragment events complete.
+    events  1000
+event size  1000 bytes
+batch size  5
+ fragments  1
+    method  synchronous
+  cpu time     82.981000 ms
+    thread     70.540000 ms
+ avg/event      0.070540 ms
+ max batch      0.466000 ms
+ avg batch      0.352700 ms
+ min batch      0.052000 ms
 
-Running write benchmarks for 1000-fragment events...
-Generating 1000 10000000-byte mock events...
-Starting network thread...
-Generating mock events complete.
-Fragmenting mock events...
-Fragmented mock events.
-Running batch size 1 benchmark...
-Wall clock time to write events: 2557.00 s
-Total CPU time to write events:  625.06 s
-Thread time to write events:     474.82 s
-Average time per event:          474.8245 ms
-Max batch time:                  8.2400 ms
-Avg batch time:                  0.4748 ms
-Min batch time:                  0.0150 ms
-Batch size 1 benchmark complete.
-Running batch size 10 benchmark...
-Wall clock time to write events: 320.00 s
-Total CPU time to write events:  85.73 s
-Thread time to write events:     34.76 s
-Average time per event:          34.7618 ms
-Max batch time:                  4.6020 ms
-Avg batch time:                  0.3476 ms
-Min batch time:                  0.0170 ms
-Batch size 10 benchmark complete.
-Running batch size 100 benchmark...
-Wall clock time to write events: 168.00 s
-Total CPU time to write events:  30.86 s
-Thread time to write events:     13.13 s
-Average time per event:          13.1348 ms
-Max batch time:                  22.2880 ms
-Avg batch time:                  1.3135 ms
-Min batch time:                  0.0510 ms
-Batch size 100 benchmark complete.
-Running batch size 500 benchmark...
-Wall clock time to write events: 179.00 s
-Total CPU time to write events:  32.15 s
-Thread time to write events:     8.42 s
-Average time per event:          8.4210 ms
-Max batch time:                  15.0480 ms
-Avg batch time:                  4.2105 ms
-Min batch time:                  0.1360 ms
-Batch size 500 benchmark complete.
-Running batch size 950 benchmark...
-Wall clock time to write events: 190.00 s
-Total CPU time to write events:  18.46 s
-Thread time to write events:     8.63 s
-Average time per event:          8.6267 ms
-Max batch time:                  34.1100 ms
-Avg batch time:                  8.2003 ms
-Min batch time:                  2.8600 ms
-Batch size 950 benchmark complete.
-Write benchmarks for 1000-fragment events complete.
+    events  1000
+event size  1000 bytes
+batch size  10
+ fragments  1
+    method  synchronous
+  cpu time     45.799000 ms
+    thread     38.881000 ms
+ avg/event      0.038881 ms
+ max batch      0.449000 ms
+ avg batch      0.388810 ms
+ min batch      0.037000 ms
 
-Default benchmarks complete.
-Tearing down database...
-Successfully shutdown network thread.
-Benchmarks completed.
+    events  1000
+event size  10000 bytes
+batch size  1
+ fragments  1
+    method  synchronous
+  cpu time    413.487000 ms
+    thread    351.651000 ms
+ avg/event      0.351651 ms
+ max batch      1.016000 ms
+ avg batch      0.351651 ms
+ min batch      0.049000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  5
+ fragments  1
+    method  synchronous
+  cpu time     96.572000 ms
+    thread     83.998000 ms
+ avg/event      0.083998 ms
+ max batch      0.721000 ms
+ avg batch      0.419990 ms
+ min batch      0.059000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  10
+ fragments  1
+    method  synchronous
+  cpu time     59.394000 ms
+    thread     49.546000 ms
+ avg/event      0.049546 ms
+ max batch      0.812000 ms
+ avg batch      0.495460 ms
+ min batch      0.056000 ms
+
+    events  1000
+event size  500 bytes
+batch size  1
+ fragments  1
+    method  asynchronous
+    thread     67.920000 ms
+ avg/event      0.067920 ms
+ max batch     57.447000 ms
+ avg batch      0.067920 ms
+ min batch     40.235000 ms
+  cpu time     67.964000 ms
+
+    events  1000
+event size  500 bytes
+batch size  5
+ fragments  1
+    method  asynchronous
+    thread     28.087000 ms
+ avg/event      0.028087 ms
+ max batch     24.227000 ms
+ avg batch      0.140435 ms
+ min batch     15.564000 ms
+  cpu time     28.106000 ms
+
+    events  1000
+event size  500 bytes
+batch size  10
+ fragments  1
+    method  asynchronous
+    thread     22.345000 ms
+ avg/event      0.022345 ms
+ max batch     17.170000 ms
+ avg batch      0.223450 ms
+ min batch     12.960000 ms
+  cpu time     22.363000 ms
+
+    events  1000
+event size  1000 bytes
+batch size  1
+ fragments  1
+    method  asynchronous
+    thread     59.518000 ms
+ avg/event      0.059518 ms
+ max batch     46.604000 ms
+ avg batch      0.059518 ms
+ min batch     33.359000 ms
+  cpu time     59.530000 ms
+
+    events  1000
+event size  1000 bytes
+batch size  5
+ fragments  1
+    method  asynchronous
+    thread     25.241000 ms
+ avg/event      0.025241 ms
+ max batch     21.002000 ms
+ avg batch      0.126205 ms
+ min batch     13.585000 ms
+  cpu time     25.253000 ms
+
+    events  1000
+event size  1000 bytes
+batch size  10
+ fragments  1
+    method  asynchronous
+    thread     22.252000 ms
+ avg/event      0.022252 ms
+ max batch     17.810000 ms
+ avg batch      0.222520 ms
+ min batch     13.645000 ms
+  cpu time     22.264000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  1
+ fragments  1
+    method  asynchronous
+    thread    148.085000 ms
+ avg/event      0.148085 ms
+ max batch    132.987000 ms
+ avg batch      0.148085 ms
+ min batch     62.838000 ms
+  cpu time    148.133000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  5
+ fragments  1
+    method  asynchronous
+    thread     83.859000 ms
+ avg/event      0.083859 ms
+ max batch     74.334000 ms
+ avg batch      0.419295 ms
+ min batch     25.838000 ms
+  cpu time     83.872000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  10
+ fragments  1
+    method  asynchronous
+    thread     67.191000 ms
+ avg/event      0.067191 ms
+ max batch     58.360000 ms
+ avg batch      0.671910 ms
+ min batch     22.459000 ms
+  cpu time     67.203000 ms
