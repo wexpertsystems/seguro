@@ -41,11 +41,15 @@ void test_clear_database(void);
 void test_write_batch(void);
 
 /// Test that an event can be written to a FoundationDB cluster in its entirety.
-void test_write_event(void);
+void test_write_fragmented_event(void);
 
 /// Test that an array of events can be written to a FoundationDB cluster in
 /// their entirety.
 void test_write_event_array(void);
+
+/// Test that an array of events can be written to a FoundationDB cluster in
+/// their entirety.
+void test_write_fragmented_event_array(void);
 
 /// Test that an event can be read from a FoundationDB cluster in its entirety.
 void test_read_event(void);
@@ -104,8 +108,9 @@ int main(int argc, char **argv) {
   test_clear_event_array();
   test_clear_database();
   test_write_batch();
-  test_write_event();
+  test_write_fragmented_event();
   test_write_event_array();
+  test_write_fragmented_event_array();
   test_read_event();
 
   // Success
@@ -483,7 +488,8 @@ void test_write_batch(void) {
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
 
-  // fdb_write_event() uses its own transaction, so we need to discard ours
+  // fdb_write_fragmented_event() uses its own transaction, so we need to
+  // discard ours
   fdb_transaction_destroy(tx);
 
   // Write event one batch at a time, counting batches
@@ -516,7 +522,7 @@ void test_write_batch(void) {
   printf("fdb_write_batch() test PASSED\n");
 }
 
-void test_write_event(void) {
+void test_write_fragmented_event(void) {
   FDBTransaction *tx;
   Event mock_event;
   FragmentedEvent mock_f_event;
@@ -524,7 +530,7 @@ void test_write_event(void) {
   uint32_t num_fragments = 3;
   uint32_t data_size = (num_fragments * OPTIMAL_VALUE_SIZE);
 
-  printf("\nStarting fdb_write_event() test...\n");
+  printf("\nStarting fdb_write_fragmented_event() test...\n");
 
   // Setup FoundationDB batch settings
   fdb_set_batch_size(1);
@@ -543,11 +549,12 @@ void test_write_event(void) {
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
 
-  // fdb_write_event() uses its own transaction, so we need to discard ours
+  // fdb_write_fragmented_event() uses its own transaction, so we need to
+  // discard ours
   fdb_transaction_destroy(tx);
 
   // Attempt to write event to FoundationDB cluster
-  fdb_write_event(&mock_f_event);
+  fdb_write_fragmented_event(&mock_f_event);
 
   // Need a new transaction handle to read from the database
   if (fdb_check_error(fdb_setup_transaction(&tx)))
@@ -567,16 +574,75 @@ void test_write_event(void) {
   fdb_clear_database();
 
   // Success
-  printf("fdb_write_event() test PASSED\n");
+  printf("fdb_write_fragmented_event() test PASSED\n");
 }
 
 void test_write_event_array(void) {
   FDBTransaction *tx;
   Event *mock_events;
+  uint32_t num_events = 4;
+  uint32_t total_num_fragments = 0;
+
+  printf("\nStarting fdb_write_event_array() test...\n");
+
+  // Setup FoundationDB batch settings
+  fdb_set_batch_size(100);
+
+  // Setup events
+  mock_events = malloc(sizeof(Event) * num_events);
+
+  for (uint8_t i = 0; i < num_events; ++i) {
+    uint32_t data_size = ((lrint(pow(10.0, i))) * OPTIMAL_VALUE_SIZE);
+    mock_events[i].id = i;
+    mock_events[i].data_length = data_size;
+    mock_events[i].data = generate_dummy_data(data_size);
+    total_num_fragments += (data_size / OPTIMAL_VALUE_SIZE);
+  }
+
+  // Setup transaction handle
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
+
+  // Verify that database is empty before test
+  assert(count_keys_in_database(tx) == 0);
+
+  // fdb_write_event_array() uses its own transaction, so we need to
+  // discard ours
+  fdb_transaction_destroy(tx);
+
+  // Attempt to write events to FoundationDB cluster
+  fdb_write_event_array(mock_events, num_events);
+
+  // Need a new transaction handle to read from the database
+  if (fdb_check_error(fdb_setup_transaction(&tx)))
+    fail_test();
+
+  // Verify that the events are in the database
+  assert(count_keys_in_database(tx) == total_num_fragments);
+
+  // Release the dummy data memory
+  for (uint8_t i = 0; i < num_events; ++i) {
+    free_event(mock_events + i);
+  }
+  free((void *)mock_events);
+
+  // Release the transaction handle
+  fdb_transaction_destroy(tx);
+
+  // Clear the database
+  fdb_clear_database();
+
+  // Success
+  printf("fdb_write_event_array() test PASSED\n");
+}
+
+void test_write_fragmented_event_array(void) {
+  FDBTransaction *tx;
+  Event *mock_events;
   FragmentedEvent *mock_f_events;
   uint32_t num_events = 4;
 
-  printf("\nStarting fdb_write_event_array() test...\n");
+  printf("\nStarting fdb_write_fragmented_event_array() test...\n");
 
   // Setup FoundationDB batch settings
   fdb_set_batch_size(100);
@@ -604,11 +670,12 @@ void test_write_event_array(void) {
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
 
-  // fdb_write_event() uses its own transaction, so we need to discard ours
+  // fdb_write_fragmented_event() uses its own transaction, so we need to
+  // discard ours
   fdb_transaction_destroy(tx);
 
   // Attempt to write events to FoundationDB cluster
-  fdb_write_event_array(mock_f_events, num_events);
+  fdb_write_fragmented_event_array(mock_f_events, num_events);
 
   // Need a new transaction handle to read from the database
   if (fdb_check_error(fdb_setup_transaction(&tx)))
@@ -634,7 +701,7 @@ void test_write_event_array(void) {
   fdb_clear_database();
 
   // Success
-  printf("fdb_write_event_array() test PASSED\n");
+  printf("fdb_write_fragmented_event_array() test PASSED\n");
 }
 
 void test_read_event(void) {
@@ -665,11 +732,12 @@ void test_read_event(void) {
   // Verify that database is empty before test
   assert(count_keys_in_database(tx) == 0);
 
-  // fdb_write_event() uses its own transaction, so we need to discard ours
+  // fdb_write_fragmented_event() uses its own transaction, so we need to
+  // discard ours
   fdb_transaction_destroy(tx);
 
   // Write event to FoundationDB cluster
-  fdb_write_event(&mock_f_event);
+  fdb_write_fragmented_event(&mock_f_event);
 
   // Attempt to read event back from FoundationDB cluster
   fdb_read_event(&return_event);

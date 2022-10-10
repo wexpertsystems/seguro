@@ -84,13 +84,21 @@ int fdb_send_transaction(FDBTransaction *tx);
 /// @return -1  Failure.
 int fdb_write_batch(FragmentedEvent *event, uint32_t *pos);
 
-/// Write a single fragmented event.
+/// Write a single event (fragmentation is automatic).
 ///
 /// @param[in] event  Handle for the event to write.
 ///
 /// @return  0  Success.
 /// @return -1  Failure.
-int fdb_write_event(FragmentedEvent *event);
+int fdb_write_event(Event *event);
+
+/// Write a single fragmented event.
+///
+/// @param[in] event  Handle for the fragmented event to write.
+///
+/// @return  0  Success.
+/// @return -1  Failure.
+int fdb_write_fragmented_event(FragmentedEvent *event);
 
 /// Write an array of fragmented events.
 ///
@@ -99,7 +107,17 @@ int fdb_write_event(FragmentedEvent *event);
 ///
 /// @return  0  Success
 /// @return -1  Failure
-int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events);
+int fdb_write_fragmented_event_array(FragmentedEvent *f_events,
+                                     uint32_t num_events);
+
+/// Write an array of events.
+///
+/// @param[in] events      Handle for the array of events to write.
+/// @param[in] num_events  Number of events in the array.
+///
+/// @return  0  Success
+/// @return -1  Failure
+int fdb_write_event_array(Event *events, uint32_t num_events);
 
 /// Read event fragments from the database and combine them into one event.
 ///

@@ -3,213 +3,213 @@ event size  500 bytes
 batch size  1
  fragments  1
     method  synchronous
-  cpu time    335.536000 ms
-    thread    301.072000 ms
- avg/event      0.301072 ms
- max batch      0.667000 ms
- avg batch      0.301072 ms
- min batch      0.046000 ms
+  cpu time    310.435000 ms
+    thread    279.872000 ms
+ avg/event      0.279872 ms
+ max batch      0.688000 ms
+ avg batch      0.279872 ms
+ min batch      0.035000 ms
 
     events  1000
 event size  500 bytes
 batch size  5
  fragments  1
     method  synchronous
-  cpu time     73.219000 ms
-    thread     61.480000 ms
- avg/event      0.061480 ms
- max batch      0.523000 ms
- avg batch      0.307400 ms
- min batch      0.070000 ms
+  cpu time     69.409000 ms
+    thread     61.156000 ms
+ avg/event      0.061156 ms
+ max batch      0.579000 ms
+ avg batch      0.305780 ms
+ min batch      0.029000 ms
 
     events  1000
 event size  500 bytes
 batch size  10
  fragments  1
     method  synchronous
-  cpu time     40.468000 ms
-    thread     34.003000 ms
- avg/event      0.034003 ms
- max batch      0.684000 ms
- avg batch      0.340030 ms
- min batch      0.040000 ms
-
-    events  1000
-event size  1000 bytes
-batch size  1
- fragments  1
-    method  synchronous
-  cpu time    372.028000 ms
-    thread    324.338000 ms
- avg/event      0.324338 ms
- max batch      1.008000 ms
- avg batch      0.324338 ms
- min batch      0.043000 ms
-
-    events  1000
-event size  1000 bytes
-batch size  5
- fragments  1
-    method  synchronous
-  cpu time     82.981000 ms
-    thread     70.540000 ms
- avg/event      0.070540 ms
- max batch      0.466000 ms
- avg batch      0.352700 ms
- min batch      0.052000 ms
-
-    events  1000
-event size  1000 bytes
-batch size  10
- fragments  1
-    method  synchronous
-  cpu time     45.799000 ms
-    thread     38.881000 ms
- avg/event      0.038881 ms
- max batch      0.449000 ms
- avg batch      0.388810 ms
- min batch      0.037000 ms
-
-    events  1000
-event size  10000 bytes
-batch size  1
- fragments  1
-    method  synchronous
-  cpu time    413.487000 ms
-    thread    351.651000 ms
- avg/event      0.351651 ms
- max batch      1.016000 ms
- avg batch      0.351651 ms
- min batch      0.049000 ms
-
-    events  1000
-event size  10000 bytes
-batch size  5
- fragments  1
-    method  synchronous
-  cpu time     96.572000 ms
-    thread     83.998000 ms
- avg/event      0.083998 ms
- max batch      0.721000 ms
- avg batch      0.419990 ms
+  cpu time     35.851000 ms
+    thread     32.823000 ms
+ avg/event      0.032823 ms
+ max batch      0.534000 ms
+ avg batch      0.328230 ms
  min batch      0.059000 ms
 
     events  1000
+event size  1000 bytes
+batch size  1
+ fragments  1
+    method  synchronous
+  cpu time    294.141000 ms
+    thread    254.824000 ms
+ avg/event      0.254824 ms
+ max batch      0.767000 ms
+ avg batch      0.254824 ms
+ min batch      0.049000 ms
+
+    events  1000
+event size  1000 bytes
+batch size  5
+ fragments  1
+    method  synchronous
+  cpu time     76.864000 ms
+    thread     64.150000 ms
+ avg/event      0.064150 ms
+ max batch      0.479000 ms
+ avg batch      0.320750 ms
+ min batch      0.055000 ms
+
+    events  1000
+event size  1000 bytes
+batch size  10
+ fragments  1
+    method  synchronous
+  cpu time     44.174000 ms
+    thread     35.902000 ms
+ avg/event      0.035902 ms
+ max batch      0.386000 ms
+ avg batch      0.359020 ms
+ min batch      0.057000 ms
+
+    events  1000
+event size  10000 bytes
+batch size  1
+ fragments  1
+    method  synchronous
+  cpu time    388.149000 ms
+    thread    337.213000 ms
+ avg/event      0.337213 ms
+
+ max batch      1.103000 ms
+ avg batch      0.337213 ms
+ min batch      0.048000 ms
+    events  1000
+event size  10000 bytes
+batch size  5
+ fragments  1
+    method  synchronous
+  cpu time     90.445000 ms
+    thread     78.572000 ms
+ avg/event      0.078572 ms
+ max batch      0.474000 ms
+ avg batch      0.392860 ms
+ min batch      0.052000 ms
+
+    events  1000
 event size  10000 bytes
 batch size  10
  fragments  1
     method  synchronous
-  cpu time     59.394000 ms
-    thread     49.546000 ms
- avg/event      0.049546 ms
- max batch      0.812000 ms
- avg batch      0.495460 ms
- min batch      0.056000 ms
+  cpu time     57.096000 ms
+    thread     47.178000 ms
+ avg/event      0.047178 ms
+ max batch      0.578000 ms
+ avg batch      0.471780 ms
+ min batch      0.049000 ms
 
     events  1000
 event size  500 bytes
 batch size  1
  fragments  1
     method  asynchronous
-    thread     67.920000 ms
- avg/event      0.067920 ms
- max batch     57.447000 ms
- avg batch      0.067920 ms
- min batch     40.235000 ms
-  cpu time     67.964000 ms
+    thread     70.964000 ms
+ avg/event      0.070964 ms
+ max batch     58.454000 ms
+ avg batch      0.070964 ms
+ min batch     40.921000 ms
+  cpu time     71.006000 ms
 
     events  1000
 event size  500 bytes
 batch size  5
  fragments  1
     method  asynchronous
-    thread     28.087000 ms
- avg/event      0.028087 ms
- max batch     24.227000 ms
- avg batch      0.140435 ms
- min batch     15.564000 ms
-  cpu time     28.106000 ms
+    thread     27.768000 ms
+ avg/event      0.027768 ms
+ max batch     24.287000 ms
+ avg batch      0.138840 ms
+ min batch     17.180000 ms
+  cpu time     27.786000 ms
 
     events  1000
 event size  500 bytes
 batch size  10
  fragments  1
     method  asynchronous
-    thread     22.345000 ms
- avg/event      0.022345 ms
- max batch     17.170000 ms
- avg batch      0.223450 ms
- min batch     12.960000 ms
-  cpu time     22.363000 ms
+    thread     23.502000 ms
+ avg/event      0.023502 ms
+ max batch     18.701000 ms
+ avg batch      0.235020 ms
+ min batch     14.519000 ms
+  cpu time     23.525000 ms
 
     events  1000
 event size  1000 bytes
 batch size  1
  fragments  1
     method  asynchronous
-    thread     59.518000 ms
- avg/event      0.059518 ms
- max batch     46.604000 ms
- avg batch      0.059518 ms
- min batch     33.359000 ms
-  cpu time     59.530000 ms
+    thread     68.943000 ms
+ avg/event      0.068943 ms
+ max batch     59.171000 ms
+ avg batch      0.068943 ms
+ min batch     41.016000 ms
+  cpu time     68.955000 ms
 
     events  1000
 event size  1000 bytes
 batch size  5
  fragments  1
     method  asynchronous
-    thread     25.241000 ms
- avg/event      0.025241 ms
- max batch     21.002000 ms
- avg batch      0.126205 ms
- min batch     13.585000 ms
-  cpu time     25.253000 ms
+    thread     29.197000 ms
+ avg/event      0.029197 ms
+ max batch     25.224000 ms
+ avg batch      0.145985 ms
+ min batch     17.875000 ms
+  cpu time     29.210000 ms
 
     events  1000
 event size  1000 bytes
 batch size  10
  fragments  1
     method  asynchronous
-    thread     22.252000 ms
- avg/event      0.022252 ms
- max batch     17.810000 ms
- avg batch      0.222520 ms
- min batch     13.645000 ms
-  cpu time     22.264000 ms
+    thread     26.000000 ms
+ avg/event      0.026000 ms
+ max batch     22.452000 ms
+ avg batch      0.260000 ms
+ min batch     15.274000 ms
+  cpu time     26.013000 ms
 
     events  1000
 event size  10000 bytes
 batch size  1
  fragments  1
     method  asynchronous
-    thread    148.085000 ms
- avg/event      0.148085 ms
- max batch    132.987000 ms
- avg batch      0.148085 ms
- min batch     62.838000 ms
-  cpu time    148.133000 ms
+    thread    162.992000 ms
+ avg/event      0.162992 ms
+ max batch    145.679000 ms
+ avg batch      0.162992 ms
+ min batch     94.510000 ms
+  cpu time    163.047000 ms
 
     events  1000
 event size  10000 bytes
 batch size  5
  fragments  1
     method  asynchronous
-    thread     83.859000 ms
- avg/event      0.083859 ms
- max batch     74.334000 ms
- avg batch      0.419295 ms
- min batch     25.838000 ms
-  cpu time     83.872000 ms
+    thread     75.988000 ms
+ avg/event      0.075988 ms
+ max batch     66.257000 ms
+ avg batch      0.379940 ms
+ min batch     27.144000 ms
+  cpu time     76.000000 ms
 
     events  1000
 event size  10000 bytes
 batch size  10
  fragments  1
     method  asynchronous
-    thread     67.191000 ms
- avg/event      0.067191 ms
- max batch     58.360000 ms
- avg batch      0.671910 ms
- min batch     22.459000 ms
-  cpu time     67.203000 ms
+    thread     65.696000 ms
+ avg/event      0.065696 ms
+ max batch     56.617000 ms
+ avg batch      0.656960 ms
+ min batch     22.278000 ms
+  cpu time     65.711000 ms

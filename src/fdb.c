@@ -195,7 +195,19 @@ tx_fail:
   return -1;
 }
 
-int fdb_write_event(FragmentedEvent *event) {
+int fdb_write_event(Event *event) {
+  // Fragment the event
+  FragmentedEvent *f_event = (FragmentedEvent *)malloc(sizeof(FragmentedEvent));
+  fragment_event(event, f_event);
+
+  // Write event fragments
+  int err = fdb_write_fragmented_event(f_event);
+
+  // Success or failure
+  return err;
+}
+
+int fdb_write_fragmented_event(FragmentedEvent *event) {
   FDBTransaction *tx;
   uint32_t i = 0;
 
@@ -222,7 +234,19 @@ tx_fail:
   return -1;
 }
 
-int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events) {
+int fdb_write_event_array(Event *events, uint32_t num_events) {
+  FragmentedEvent *f_events = malloc(sizeof(FragmentedEvent) * num_events);
+  for (uint32_t i = 0; i < num_events; i++) {
+    fragment_event(&events[i], &f_events[i]);
+  }
+  int err = fdb_write_fragmented_event_array(f_events, num_events);
+
+  // Success
+  return err;
+}
+
+int fdb_write_fragmented_event_array(FragmentedEvent *f_events,
+                                     uint32_t num_events) {
   FDBTransaction *tx;
   uint32_t batch_filled = 0;
   uint32_t frag_pos = 0;
@@ -234,24 +258,23 @@ int fdb_write_event_array(FragmentedEvent *events, uint32_t num_events) {
 
   // For each event
   while (i < num_events) {
-
     // Add as many unwritten fragments from the current event as possible
     // (method differs slightly depending on whether there are already other
     // fragments in the batch)
     if (!batch_filled) {
-      batch_filled = add_event_set_transactions(tx, (events + i), frag_pos,
+      batch_filled = add_event_set_transactions(tx, (f_events + i), frag_pos,
                                                 fdb_batch_size);
       frag_pos += batch_filled;
     } else {
       uint32_t num_kvp = add_event_set_transactions(
-          tx, (events + i), frag_pos, (fdb_batch_size - batch_filled));
+          tx, (f_events + i), frag_pos, (fdb_batch_size - batch_filled));
       batch_filled += num_kvp;
       frag_pos += num_kvp;
     }
 
     // Increment event counter when all fragments from an event have been
     // written
-    if (frag_pos == events[i].num_fragments) {
+    if (frag_pos == f_events[i].num_fragments) {
       i += 1;
       frag_pos = 0;
     }

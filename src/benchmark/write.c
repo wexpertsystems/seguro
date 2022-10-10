@@ -131,6 +131,7 @@ void run_benchmarks(void) {
       {1000, 500},
       {1000, 1000},
       {1000, 10000},
+      {1000, 50000},
   };
 
   for (uint8_t i = 0; i < num_configs; ++i) {
